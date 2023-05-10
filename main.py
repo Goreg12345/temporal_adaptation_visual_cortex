@@ -4,8 +4,13 @@ from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 import torch
 
+import pytorch_lightning as pl
+from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.loggers import TensorBoardLogger
 
-from models.noisy_dataloader import FashionMNISTNoisyDataset
+from models.additive_adaptation import AdditiveAdaptation
+from models.noisy_dataloader import NoisyTemporalDataset
 from utils.transforms import Identity, RandomRepeatedNoise, Grey
 from utils.visualization import visualize_first_batch_with_timesteps
 
@@ -21,18 +26,26 @@ if __name__ == '__main__':
 
     timestep_transforms = [Identity()] + [Grey()] + [noise_transformer] * 5 + [Grey()] + [noise_transformer_test] * 3
     # Create instances of the Fashion MNIST dataset
-    train_dataset = FashionMNISTNoisyDataset('train', transform, timestep_transforms)
-    #test_dataset = FashionMNISTNoisyDataset('test', transform, timestep_transforms)
+    train_dataset = NoisyTemporalDataset('train', dataset='fashion_mnist', transform=transform,
+                                         img_to_timesteps_transforms=timestep_transforms)
+    test_dataset = NoisyTemporalDataset('test', dataset='fashion_mnist', transform=transform,
+                                         img_to_timesteps_transforms=timestep_transforms)
 
     # Create the DataLoaders for the Fashion MNIST dataset
-    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=2)
-    #test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False, num_workers=2)
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=3)
+    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=3)
 
     # Print the length of the DataLoader
     print(f'Train DataLoader: {len(train_loader)} batches')
     #print(f'Test DataLoader: {len(test_loader)} batches')
 
     # Visualize the first batch of images
-    visualize_first_batch_with_timesteps(train_loader, 8)
+    # visualize_first_batch_with_timesteps(train_loader, 8)
+
+    model = AdditiveAdaptation(10)
+    trainer = pl.Trainer()
+    trainer.fit(model, train_loader, test_loader)
+
+
 
     print('stop')
