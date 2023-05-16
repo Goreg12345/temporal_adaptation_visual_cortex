@@ -136,5 +136,16 @@ class AdditiveAdaptation(pl.LightningModule):
         self.log('val_acc', acc)
         return loss
 
+    def test_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+        loss = self.loss(y_hat, y)
+        self.log('test_loss', loss)
+        # accuracy
+        preds = torch.argmax(y_hat, dim=1)
+        acc = accuracy(preds, y, task='multiclass', num_classes=10)
+        self.log('test_acc', acc)
+        return loss
+
     def backward(self, loss, *args: Any, **kwargs: Any) -> None:
         loss.backward()
