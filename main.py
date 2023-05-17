@@ -27,37 +27,38 @@ if __name__ == '__main__':
 
     logger = CSVLogger('experimental_data', name='additive_adaptation')
 
-    for contrast  in [0.2, 0.4, 0.6, 0.8, 1.0]:
-        for repeat_noise in [True, False]:
-            noise_transformer = RandomRepeatedNoise(contrast=contrast, repeat_noise_at_test=repeat_noise)
-            noise_transformer_test = partial(noise_transformer, stage='test')
+    for _ in range(5):
+        for contrast  in [0.2, 0.4, 0.6, 0.8, 1.0]:
+            for repeat_noise in [True, False]:
+                noise_transformer = RandomRepeatedNoise(contrast=contrast, repeat_noise_at_test=repeat_noise)
+                noise_transformer_test = partial(noise_transformer, stage='test')
 
-            timestep_transforms = [Identity()] + [Grey()] + [noise_transformer] * 5 + [Grey()] + [noise_transformer_test] * 3
-            # Create instances of the Fashion MNIST dataset
-            train_dataset = NoisyTemporalDataset('train', dataset='fashion_mnist', transform=transform,
-                                                 img_to_timesteps_transforms=timestep_transforms)
-            test_dataset = NoisyTemporalDataset('test', dataset='fashion_mnist', transform=transform,
-                                                 img_to_timesteps_transforms=timestep_transforms)
+                timestep_transforms = [Grey()] + [noise_transformer] * 5 + [Grey()] + [noise_transformer_test] * 3
+                # Create instances of the Fashion MNIST dataset
+                train_dataset = NoisyTemporalDataset('train', dataset='fashion_mnist', transform=transform,
+                                                     img_to_timesteps_transforms=timestep_transforms)
+                test_dataset = NoisyTemporalDataset('test', dataset='fashion_mnist', transform=transform,
+                                                     img_to_timesteps_transforms=timestep_transforms)
 
-            # Create the DataLoaders for the Fashion MNIST dataset
-            train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=3)
-            test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=3)
+                # Create the DataLoaders for the Fashion MNIST dataset
+                train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=3)
+                test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=3)
 
-            # Print the length of the DataLoader
-            print(f'Train DataLoader: {len(train_loader)} batches')
-            #print(f'Test DataLoader: {len(test_loader)} batches')
+                # Print the length of the DataLoader
+                print(f'Train DataLoader: {len(train_loader)} batches')
+                #print(f'Test DataLoader: {len(test_loader)} batches')
 
-            # Visualize the first batch of images
-            # visualize_first_batch_with_timesteps(train_loader, 8)
+                # Visualize the first batch of images
+                # visualize_first_batch_with_timesteps(train_loader, 8)
 
-            model = AdditiveAdaptation(10)
-            trainer = pl.Trainer(max_epochs=num_epochs)
-            trainer.fit(model, train_loader, test_loader, )
+                model = AdditiveAdaptation(10)
+                trainer = pl.Trainer(max_steps=num_epochs)
+                trainer.fit(model, train_loader, test_loader, )
 
-            # test
-            test_results = trainer.test(model, dataloaders=test_loader)
-            print(f'Contrast {contrast}, repeat_noise {repeat_noise}: {test_results[0]["test_acc"]}')
-            logger.log_metrics({'contrast': contrast, 'repeat_noise': repeat_noise, 'test_acc': test_results[0]["test_acc"]})
-            logger.save()
+                # test
+                test_results = trainer.test(model, dataloaders=test_loader)
+                print(f'Contrast {contrast}, repeat_noise {repeat_noise}: {test_results[0]["test_acc"]}')
+                logger.log_metrics({'contrast': contrast, 'repeat_noise': repeat_noise, 'test_acc': test_results[0]["test_acc"]})
+                logger.save()
 
     print('stop')

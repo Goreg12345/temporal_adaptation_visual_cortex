@@ -53,5 +53,5 @@ class RandomRepeatedNoise:
                     torch.manual_seed(self.noise_seed_test[index])
                     noise = torch.rand_like(x)
             torch.set_rng_state(rng_state)
-            return noise + self.contrast * x
+            return noise - .5 + self.contrast * x
 
