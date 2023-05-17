@@ -33,8 +33,9 @@ if __name__ == '__main__':
         for repeat_noise in [True, False]:
             noise_transformer = RandomRepeatedNoise(contrast=contrast, repeat_noise_at_test=repeat_noise)
             noise_transformer_test = partial(noise_transformer, stage='test')
+            first_in_line_transformer = partial(noise_transformer, stage='test', first_in_line=True)
 
-            timestep_transforms = [Grey()] + [noise_transformer] * 5 + [Grey()] + [noise_transformer_test] * 3
+            timestep_transforms = [Grey()] + [noise_transformer] * 5 + [Grey()] + [first_in_line_transformer] + [noise_transformer_test] * 2
             # Create instances of the Fashion MNIST dataset
             train_dataset = NoisyTemporalDataset('train', dataset=dataset, transform=transform,
                                                  img_to_timesteps_transforms=timestep_transforms)
@@ -50,7 +51,7 @@ if __name__ == '__main__':
             #print(f'Test DataLoader: {len(test_loader)} batches')
 
             # Visualize the first batch of images
-            # visualize_first_batch_with_timesteps(train_loader, 8)
+            visualize_first_batch_with_timesteps(train_loader, 8)
 
             cifar_architecture = True if dataset == 'cifar10' else False
             model = AdditiveAdaptation(10, cifar_architecture=cifar_architecture)
