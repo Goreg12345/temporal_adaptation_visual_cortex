@@ -58,6 +58,6 @@ if __name__ == '__main__':
             test_results = trainer.test(model, dataloaders=test_loader)
             print(f'Contrast {contrast}, repeat_noise {repeat_noise}: {test_results[0]["test_acc"]}')
             logger.log_metrics({'contrast': contrast, 'repeat_noise': repeat_noise, 'test_acc': test_results[0]["test_acc"]})
-
+            logger.save()
 
     print('stop')
