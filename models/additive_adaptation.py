@@ -11,7 +11,7 @@ import pytorch_lightning as pl
 
 class AdditiveAdaptation(pl.LightningModule):
 
-    def __init__(self, t_steps):
+    def __init__(self, t_steps, cifar_architecture=False):
         super(AdditiveAdaptation, self).__init__()
 
         # training variables
@@ -25,26 +25,49 @@ class AdditiveAdaptation(pl.LightningModule):
         # placeholders
         init = torch.zeros(4)
 
-        # conv1
-        self.conv1 = nn.Conv2d(in_channels=1, out_channels=32, kernel_size=5)
-        self.sconv1 = module_exp_decay(32, 24, 24, init[0], True, init[0], True)
+        if cifar_architecture:
+            # conv1
+            self.conv1 = nn.Conv2d(in_channels=3, out_channels=32, kernel_size=5,)
+            self.sconv1 = module_exp_decay(32, 28, 28, init[0], True, init[0], True)
 
-        # conv2
-        self.conv2 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=5)
-        self.sconv2 = module_exp_decay(32, 8, 8, init[1], True, init[1], True)
+            # conv2
+            self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=5,)
+            self.sconv2 = module_exp_decay(64, 10, 10, init[1], True, init[1], True)
 
-        # conv3
-        self.conv3 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3)
-        self.sconv3 = module_exp_decay(32, 2, 2, init[2], True, init[2], True)
+            # conv3
+            self.conv3 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3,)
+            self.sconv3 = module_exp_decay(64, 3, 3, init[2], True, init[2], True)
 
-        # fc 1
-        self.fc1 = nn.Linear(in_features=128, out_features=1024)
-        self.sfc1 = module_exp_decay('none', 'none', 1024, init[3], True, init[3], True)
+            # fc 1
+            self.fc1 = nn.Linear(in_features=576, out_features=1024)
+            self.sfc1 = module_exp_decay('none', 'none', 1024, init[3], True, init[3], True)
 
-        # decoder
-        # self.decoder = nn.Linear(in_features=1024*self.t_steps, out_features=10)
-        self.decoder = nn.Linear(in_features=1024,
-                                 out_features=10)  # only saves the output from the last timestep to train
+            # decoder
+            # self.decoder = nn.Linear(in_features=1024*self.t_steps, out_features=10)
+            self.decoder = nn.Linear(in_features=1024,
+                                     out_features=10)  # only saves the output from the last timestep to train
+
+        else:
+            # conv1
+            self.conv1 = nn.Conv2d(in_channels=1, out_channels=32, kernel_size=5)
+            self.sconv1 = module_exp_decay(32, 24, 24, init[0], True, init[0], True)
+
+            # conv2
+            self.conv2 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=5)
+            self.sconv2 = module_exp_decay(32, 8, 8, init[1], True, init[1], True)
+
+            # conv3
+            self.conv3 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3)
+            self.sconv3 = module_exp_decay(32, 2, 2, init[2], True, init[2], True)
+
+            # fc 1
+            self.fc1 = nn.Linear(in_features=128, out_features=1024)
+            self.sfc1 = module_exp_decay('none', 'none', 1024, init[3], True, init[3], True)
+
+            # decoder
+            # self.decoder = nn.Linear(in_features=1024*self.t_steps, out_features=10)
+            self.decoder = nn.Linear(in_features=1024,
+                                     out_features=10)  # only saves the output from the last timestep to train
         self.lr = 0.001
 
         self.loss = nn.CrossEntropyLoss()

@@ -20,7 +20,7 @@ class NoisyTemporalDataset(Dataset):
         self.split = split
         self.transform = transform
         self.dataset = load_dataset(dataset, split=split)
-        input_col_name = 'img' if 'img' in self.dataset else 'image'  # because different datasets have different names
+        input_col_name = 'img' if 'img' in self.dataset.column_names else 'image'  # because different datasets have different names
         self.data, self.targets = self.dataset[input_col_name], self.dataset['label']
         self.img_to_timesteps_transforms = img_to_timesteps_transforms
 
