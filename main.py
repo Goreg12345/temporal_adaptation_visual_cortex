@@ -12,12 +12,12 @@ from pytorch_lightning.loggers import CSVLogger
 
 from models.additive_adaptation import AdditiveAdaptation
 from models.noisy_dataloader import NoisyTemporalDataset
-from utils.transforms import Identity, RandomRepeatedNoise, Grey
+from utils.transforms import Identity, RandomRepeatedNoise, Grey, MeanFlat
 from utils.visualization import visualize_first_batch_with_timesteps
 
 if __name__ == '__main__':
 
-    num_epochs = 3
+    num_epochs = [1, 4, 20]
     dataset = 'fashion_mnist'
 
     # Define transforms for data augmentation
@@ -28,14 +28,14 @@ if __name__ == '__main__':
 
     logger = CSVLogger('experimental_data', name='additive_adaptation')
 
-    for _ in range(5):
-        for contrast  in [ 0.8, 1.0, 0.2, 0.4, 0.6,]:
+    for num_epoch in num_epochs:
+        for contrast  in [0.4, 0.8, 1.0, 0.2, 0.4, 0.6,]:
             for repeat_noise in [True, False]:
                 noise_transformer = RandomRepeatedNoise(contrast=contrast, repeat_noise_at_test=repeat_noise)
                 noise_transformer_test = partial(noise_transformer, stage='test')
                 first_in_line_transformer = partial(noise_transformer, stage='test', first_in_line=True)
 
-                timestep_transforms = [Grey()] + [noise_transformer] * 5 + [Grey()] + [first_in_line_transformer] + [noise_transformer_test] * 2
+                timestep_transforms = [MeanFlat()] + [noise_transformer] * 5 + [MeanFlat()] + [first_in_line_transformer] + [noise_transformer_test] * 2
                 # Create instances of the Fashion MNIST dataset
                 train_dataset = NoisyTemporalDataset('train', dataset=dataset, transform=transform,
                                                      img_to_timesteps_transforms=timestep_transforms)
@@ -55,13 +55,13 @@ if __name__ == '__main__':
 
                 cifar_architecture = True if dataset == 'cifar10' else False
                 model = AdditiveAdaptation(10, cifar_architecture=cifar_architecture)
-                trainer = pl.Trainer(max_epochs=num_epochs)
+                trainer = pl.Trainer(max_epochs=num_epoch)
                 trainer.fit(model, train_loader, test_loader, )
 
                 # test
                 test_results = trainer.test(model, dataloaders=test_loader)
                 print(f'Contrast {contrast}, repeat_noise {repeat_noise}: {test_results[0]["test_acc"]}')
-                logger.log_metrics({'contrast': contrast, 'repeat_noise': repeat_noise, 'test_acc': test_results[0]["test_acc"]})
+                logger.log_metrics({'contrast': contrast, 'epoch': num_epoch, 'repeat_noise': repeat_noise, 'test_acc': test_results[0]["test_acc"]})
                 logger.save()
 
     print('stop')
