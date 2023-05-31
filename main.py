@@ -1,3 +1,4 @@
+import json
 from functools import partial
 
 from torch.utils.data import DataLoader
@@ -13,13 +14,18 @@ from pytorch_lightning.loggers import CSVLogger
 from models.adaptation import Adaptation
 from models.additive_adaptation import AdditiveAdaptation
 from models.noisy_dataloader import NoisyTemporalDataset
+from modules.exponential_decay import ExponentialDecay
+from modules.lateral_recurrence import LateralRecurrence
 from utils.transforms import Identity, RandomRepeatedNoise, Grey, MeanFlat
 from utils.visualization import visualize_first_batch_with_timesteps
 
+
 if __name__ == '__main__':
 
-    num_epochs = [1, 2]
-    dataset = 'fashion_mnist'
+    with open('config.json', 'r') as f:
+        config = json.load(f)
+
+    dataset = config["dataset"]
 
     # Define transforms for data augmentation
     transform = transforms.Compose([
@@ -27,35 +33,43 @@ if __name__ == '__main__':
         # transforms.Normalize((0.5,), (0.5,))
     ])
 
-    logger = CSVLogger('experimental_data', name='additive_adaptation')
+    logger = CSVLogger(config["log_dir"], name=config["log_name"])
 
-    for num_epoch in num_epochs:
-        for contrast  in [0.8, 1.0, 0.2, 0.4, 0.6,]:
-            for repeat_noise in [True, False]:
-                noise_transformer = RandomRepeatedNoise(contrast=contrast, repeat_noise_at_test=repeat_noise)
-                noise_transformer_test = partial(noise_transformer, stage='test')
-                first_in_line_transformer = partial(noise_transformer, stage='test', first_in_line=True)
+    if config["adaptation_module"] == 'LateralRecurrence':
+        adaptation_module = LateralRecurrence
+    elif config["adaptation_module"] == 'ExponentialDecay':
+        adaptation_module = ExponentialDecay
+    else:
+        raise ValueError(f'Adaptation module {config["adaptation_module"]} not implemented')
 
-                timestep_transforms = [MeanFlat()] + [noise_transformer] * 5 + [MeanFlat()] + [first_in_line_transformer] + [noise_transformer_test] * 2
-                # Create instances of the Fashion MNIST dataset
-                train_dataset = NoisyTemporalDataset('train', dataset=dataset, transform=transform,
-                                                     img_to_timesteps_transforms=timestep_transforms)
-                test_dataset = NoisyTemporalDataset('test', dataset=dataset, transform=transform,
-                                                     img_to_timesteps_transforms=timestep_transforms)
+    for contrast in config["contrasts"]:
+        for repeat_noise in config["repeat_noises"]:
+            noise_transformer = RandomRepeatedNoise(contrast=contrast, repeat_noise_at_test=repeat_noise)
+            noise_transformer_test = partial(noise_transformer, stage='test')
+            first_in_line_transformer = partial(noise_transformer, stage='test', first_in_line=True)
 
-                # Create the DataLoaders for the Fashion MNIST dataset
-                train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=3)
-                test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=3)
+            timestep_transforms = [MeanFlat()] + [noise_transformer] * 5 + [MeanFlat()] + [first_in_line_transformer] + [noise_transformer_test] * 2
+            # Create instances of the Fashion MNIST dataset
+            train_dataset = NoisyTemporalDataset('train', dataset=dataset, transform=transform,
+                                                 img_to_timesteps_transforms=timestep_transforms)
+            test_dataset = NoisyTemporalDataset('test', dataset=dataset, transform=transform,
+                                                 img_to_timesteps_transforms=timestep_transforms)
 
-                # Print the length of the DataLoader
-                print(f'Train DataLoader: {len(train_loader)} batches')
-                #print(f'Test DataLoader: {len(test_loader)} batches')
+            # Create the DataLoaders for the Fashion MNIST dataset
+            train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=3)
+            test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=3)
 
-                # Visualize the first batch of images
-                visualize_first_batch_with_timesteps(train_loader, 8)
+            # Print the length of the DataLoader
+            print(f'Train DataLoader: {len(train_loader)} batches')
+            #print(f'Test DataLoader: {len(test_loader)} batches')
 
-                cifar_architecture = True if dataset == 'cifar10' else False
-                model = Adaptation(10, cifar_architecture=cifar_architecture)
+            # Visualize the first batch of images
+            visualize_first_batch_with_timesteps(train_loader, 8)
+
+            for num_epoch in config["num_epochs"]:
+                model = Adaptation(10, layer_kwargs=config["layer_kwargs"],
+                                   adaptation_kwargs=config["adaptation_kwargs"], lr=config["lr"],
+                                   adaptation_module=adaptation_module,)
                 trainer = pl.Trainer(max_epochs=num_epoch)
                 trainer.fit(model, train_loader, test_loader, )
 

@@ -4,7 +4,6 @@ import torch
 import torch.nn as nn
 from torchmetrics.functional import accuracy
 
-from models.module_exp_decay import module_exp_decay
 import pytorch_lightning as pl
 
 from modules.exponential_decay import ExponentialDecay
@@ -12,7 +11,7 @@ from modules.exponential_decay import ExponentialDecay
 
 class Adaptation(pl.LightningModule):
 
-    def __init__(self, t_steps, cifar_architecture=False, num_adapt_args=2):
+    def __init__(self, t_steps, layer_kwargs, adaptation_kwargs, lr, adaptation_module=ExponentialDecay,):
         super(Adaptation, self).__init__()
 
         # training variables
@@ -22,55 +21,28 @@ class Adaptation(pl.LightningModule):
         self.relu = nn.ReLU()
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
         self.dropout = nn.Dropout()
-        self.num_adapt_args = num_adapt_args
 
-        # placeholders
-        init = torch.zeros(4)
+        # conv1
+        self.conv1 = nn.Conv2d(**layer_kwargs[0])
+        self.adapt1 = adaptation_module(**adaptation_kwargs[0])
 
-        if cifar_architecture:
-            # conv1
-            self.conv1 = nn.Conv2d(in_channels=3, out_channels=32, kernel_size=5,)
-            self.adapt1 = ExponentialDecay(init[0], True, init[0], True)
+        # conv2
+        self.conv2 = nn.Conv2d(**layer_kwargs[1])
+        self.adapt2 = adaptation_module(**adaptation_kwargs[1])
 
-            # conv2
-            self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=5,)
-            self.adapt2 = ExponentialDecay(init[1], True, init[1], True)
+        # conv3
+        self.conv3 = nn.Conv2d(**layer_kwargs[2])
+        self.adapt3 = adaptation_module(**adaptation_kwargs[2])
 
-            # conv3
-            self.conv3 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3,)
-            self.adapt3 = ExponentialDecay(init[2], True, init[2], True)
+        # fc 1
+        self.fc1 = nn.Linear(**layer_kwargs[3])
+        self.adaptfc1 = adaptation_module(**adaptation_kwargs[3])
 
-            # fc 1
-            self.fc1 = nn.Linear(in_features=576, out_features=1024)
-            self.adaptfc1 = ExponentialDecay(init[3], True, init[3], True)
-
-            # decoder
-            # self.decoder = nn.Linear(in_features=1024*self.t_steps, out_features=10)
-            self.decoder = nn.Linear(in_features=1024,
-                                     out_features=10)  # only saves the output from the last timestep to train
-
-        else:
-            # conv1
-            self.conv1 = nn.Conv2d(in_channels=1, out_channels=32, kernel_size=5)
-            self.adapt1 = ExponentialDecay(init[0], True, init[0], True)
-
-            # conv2
-            self.conv2 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=5)
-            self.adapt2 = ExponentialDecay(init[1], True, init[1], True)
-
-            # conv3
-            self.conv3 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3)
-            self.adapt3 = ExponentialDecay(init[2], True, init[2], True)
-
-            # fc 1
-            self.fc1 = nn.Linear(in_features=128, out_features=1024)
-            self.adaptfc1 = ExponentialDecay(init[3], True, init[3], True)
-
-            # decoder
-            # self.decoder = nn.Linear(in_features=1024*self.t_steps, out_features=10)
-            self.decoder = nn.Linear(in_features=1024,
-                                     out_features=10)  # only saves the output from the last timestep to train
-        self.lr = 0.001
+        # decoder
+        # self.decoder = nn.Linear(in_features=1024*self.t_steps, out_features=10)
+        self.decoder = nn.Linear(in_features=1024,
+                                 out_features=10)  # only saves the output from the last timestep to train
+        self.lr = lr
 
         self.loss = nn.CrossEntropyLoss()
 
