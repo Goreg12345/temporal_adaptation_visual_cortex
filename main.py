@@ -10,6 +10,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.loggers import CSVLogger
 
+from models.adaptation import Adaptation
 from models.additive_adaptation import AdditiveAdaptation
 from models.noisy_dataloader import NoisyTemporalDataset
 from utils.transforms import Identity, RandomRepeatedNoise, Grey, MeanFlat
@@ -17,7 +18,7 @@ from utils.visualization import visualize_first_batch_with_timesteps
 
 if __name__ == '__main__':
 
-    num_epochs = [1, 4, 20]
+    num_epochs = [1, 2]
     dataset = 'fashion_mnist'
 
     # Define transforms for data augmentation
@@ -29,7 +30,7 @@ if __name__ == '__main__':
     logger = CSVLogger('experimental_data', name='additive_adaptation')
 
     for num_epoch in num_epochs:
-        for contrast  in [0.4, 0.8, 1.0, 0.2, 0.4, 0.6,]:
+        for contrast  in [0.8, 1.0, 0.2, 0.4, 0.6,]:
             for repeat_noise in [True, False]:
                 noise_transformer = RandomRepeatedNoise(contrast=contrast, repeat_noise_at_test=repeat_noise)
                 noise_transformer_test = partial(noise_transformer, stage='test')
@@ -54,7 +55,7 @@ if __name__ == '__main__':
                 visualize_first_batch_with_timesteps(train_loader, 8)
 
                 cifar_architecture = True if dataset == 'cifar10' else False
-                model = AdditiveAdaptation(10, cifar_architecture=cifar_architecture)
+                model = Adaptation(10, cifar_architecture=cifar_architecture)
                 trainer = pl.Trainer(max_epochs=num_epoch)
                 trainer.fit(model, train_loader, test_loader, )
 
