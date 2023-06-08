@@ -7,14 +7,14 @@
   "repeat_noises": [true, false],
   "lr": 0.001,
 
-  "adaptation_module": "LateralRecurrence",
-  "layer_kwargs": [
+  "adaptation_module": "DivisiveNorm",
+  "layer_kwargs_fmnist": [
     {"in_channels":  1, "out_channels": 32, "kernel_size": 5},
     {"in_channels":  32, "out_channels": 32, "kernel_size": 5},
     {"in_channels":  32, "out_channels": 32, "kernel_size": 3},
     {"in_features":  128, "out_features": 1024}
   ],
-  "adaptation_kwargs": [
+  "adaptation_kwargs_lateral": [
     {"is_conv": true, "n_channels": 32},
     {"is_conv": true, "n_channels": 32},
     {"is_conv": true, "n_channels": 32},
@@ -25,6 +25,12 @@
     {"alpha_init":  0, "train_alpha": true, "beta_init": 0, "train_beta": true},
     {"alpha_init":  0, "train_alpha": true, "beta_init": 0, "train_beta": true},
     {"alpha_init":  0, "train_alpha": true, "beta_init": 0, "train_beta": true}
+  ],
+  "adaptation_kwargs_div_norm": [
+    {"epsilon":  1e-8, "K_init":  0, "train_K":  true, "alpha_init":  0, "train_alpha": true, "sigma_init": 0, "train_sigma": true},
+    {"epsilon":  1e-8, "K_init":  0, "train_K":  true, "alpha_init":  0, "train_alpha": true, "sigma_init": 0, "train_sigma": true},
+    {"epsilon":  1e-8, "K_init":  0, "train_K":  true, "alpha_init":  0, "train_alpha": true, "sigma_init": 0, "train_sigma": true},
+    {"epsilon":  1e-8, "K_init":  0, "train_K":  true, "alpha_init":  0, "train_alpha": true, "sigma_init": 0, "train_sigma": true}
   ],
 
   "layer_kwargs_cifar10": [

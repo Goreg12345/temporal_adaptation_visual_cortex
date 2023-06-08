@@ -14,6 +14,7 @@ from pytorch_lightning.loggers import CSVLogger
 from models.adaptation import Adaptation
 from models.additive_adaptation import AdditiveAdaptation
 from models.noisy_dataloader import NoisyTemporalDataset
+from modules.divisive_norm import DivisiveNorm
 from modules.exponential_decay import ExponentialDecay
 from modules.lateral_recurrence import LateralRecurrence
 from utils.transforms import Identity, RandomRepeatedNoise, Grey, MeanFlat
@@ -26,6 +27,11 @@ if __name__ == '__main__':
         config = json.load(f)
 
     dataset = config["dataset"]
+    if config["dataset"] == 'fashion_mnist':
+        layer_kwargs = config["layer_kwargs_fmnist"]
+    elif config["dataset"] == 'cifar10':
+        layer_kwargs = config["layer_kwargs_cifar10"]
+
 
     # Define transforms for data augmentation
     transform = transforms.Compose([
@@ -37,8 +43,13 @@ if __name__ == '__main__':
 
     if config["adaptation_module"] == 'LateralRecurrence':
         adaptation_module = LateralRecurrence
+        adaptation_kwargs = config["adaptation_kwargs_lateral"]
     elif config["adaptation_module"] == 'ExponentialDecay':
         adaptation_module = ExponentialDecay
+        adaptation_kwargs = config["adaptation_kwargs_additive"]
+    elif config["adaptation_module"] == 'DivisiveNorm':
+        adaptation_module = DivisiveNorm
+        adaptation_kwargs = config["adaptation_kwargs_div_norm"]
     else:
         raise ValueError(f'Adaptation module {config["adaptation_module"]} not implemented')
 
@@ -67,8 +78,8 @@ if __name__ == '__main__':
             visualize_first_batch_with_timesteps(train_loader, 8)
 
             for num_epoch in config["num_epochs"]:
-                model = Adaptation(10, layer_kwargs=config["layer_kwargs"],
-                                   adaptation_kwargs=config["adaptation_kwargs"], lr=config["lr"],
+                model = Adaptation(10, layer_kwargs=layer_kwargs,
+                                   adaptation_kwargs=adaptation_kwargs, lr=config["lr"],
                                    adaptation_module=adaptation_module,)
                 trainer = pl.Trainer(max_epochs=num_epoch)
                 trainer.fit(model, train_loader, test_loader, )
