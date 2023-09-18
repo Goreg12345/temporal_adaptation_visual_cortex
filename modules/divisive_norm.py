@@ -14,6 +14,7 @@ class DivisiveNorm(nn.Module):
         self.alpha = nn.Parameter(torch.tensor(alpha_init, dtype=torch.float32), requires_grad=train_alpha)
         self.sigma = nn.Parameter(torch.tensor(sigma_init, dtype=torch.float32), requires_grad=train_sigma)
 
+        # clamp alpha between 0 and 1?
     def get_init_actvs(self, x, num_layer):
         return [torch.zeros_like(x, requires_grad=False)]
 

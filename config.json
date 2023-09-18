@@ -1,8 +1,8 @@
 {
   "num_epochs": [1, 5, 20],
-  "dataset": "fashion_mnist",
-  "log_dir": "experimental_data",
-  "log_name": "lateral_recurrence",
+  "dataset": "cifar10",
+  "log_dir": "debug_div_norm",
+  "log_name": "temp_div_norm",
   "contrasts": [0.8, 1.0, 0.2, 0.4, 0.6],
   "repeat_noises": [true, false],
   "lr": 0.001,
@@ -27,6 +27,12 @@
     {"alpha_init":  0, "train_alpha": true, "beta_init": 0, "train_beta": true}
   ],
   "adaptation_kwargs_div_norm": [
+    {"epsilon":  1e-8, "K_init":  0, "train_K":  true, "alpha_init":  0, "train_alpha": true, "sigma_init": 0, "train_sigma": true},
+    {"epsilon":  1e-8, "K_init":  0, "train_K":  true, "alpha_init":  0, "train_alpha": true, "sigma_init": 0, "train_sigma": true},
+    {"epsilon":  1e-8, "K_init":  0, "train_K":  true, "alpha_init":  0, "train_alpha": true, "sigma_init": 0, "train_sigma": true},
+    {"epsilon":  1e-8, "K_init":  0, "train_K":  true, "alpha_init":  0, "train_alpha": true, "sigma_init": 0, "train_sigma": true}
+  ],
+  "adaptation_kwargs_div_norm_group": [
     {"epsilon":  1e-8, "K_init":  0, "train_K":  true, "alpha_init":  0, "train_alpha": true, "sigma_init": 0, "train_sigma": true},
     {"epsilon":  1e-8, "K_init":  0, "train_K":  true, "alpha_init":  0, "train_alpha": true, "sigma_init": 0, "train_sigma": true},
     {"epsilon":  1e-8, "K_init":  0, "train_K":  true, "alpha_init":  0, "train_alpha": true, "sigma_init": 0, "train_sigma": true},

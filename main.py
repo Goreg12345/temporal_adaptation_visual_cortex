@@ -1,6 +1,10 @@
 import json
 from functools import partial
 
+# only use gpu 3
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 import torch
@@ -15,6 +19,7 @@ from models.adaptation import Adaptation
 from models.additive_adaptation import AdditiveAdaptation
 from models.noisy_dataloader import NoisyTemporalDataset
 from modules.divisive_norm import DivisiveNorm
+from modules.divisive_norm_group import DivisiveNormGroup
 from modules.exponential_decay import ExponentialDecay
 from modules.lateral_recurrence import LateralRecurrence
 from utils.transforms import Identity, RandomRepeatedNoise, Grey, MeanFlat
@@ -50,6 +55,9 @@ if __name__ == '__main__':
     elif config["adaptation_module"] == 'DivisiveNorm':
         adaptation_module = DivisiveNorm
         adaptation_kwargs = config["adaptation_kwargs_div_norm"]
+    elif config["adaptation_module"] == 'DivisiveNormGroup':
+        adaptation_module = DivisiveNormGroup
+        adaptation_kwargs = config["adaptation_kwargs_div_norm_group"]
     else:
         raise ValueError(f'Adaptation module {config["adaptation_module"]} not implemented')
 
