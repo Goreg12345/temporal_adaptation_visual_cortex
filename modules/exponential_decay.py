@@ -8,8 +8,8 @@ class ExponentialDecay(nn.Module):
     def __init__(self, alpha_init, train_alpha, beta_init, train_beta):
         super().__init__()
 
-        self.alpha = nn.Parameter(alpha_init, requires_grad=train_alpha)
-        self.beta = nn.Parameter(beta_init, requires_grad=train_beta)
+        self.alpha = nn.Parameter(torch.tensor(alpha_init, dtype=torch.float32), requires_grad=train_alpha)
+        self.beta = nn.Parameter(torch.tensor(beta_init, dtype=torch.float32), requires_grad=train_beta)
         self.relu = nn.ReLU()
 
     def get_init_actvs(self, x, num_layer):

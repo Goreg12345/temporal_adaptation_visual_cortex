@@ -1,9 +1,9 @@
 {
-  "num_epochs": [1, 5, 20],
-  "dataset": "cifar10",
+  "num_epochs": [2, 6, 25],
+  "dataset": "fashion_mnist",
   "log_dir": "debug_div_norm",
-  "log_name": "temp_div_norm",
-  "contrasts": [0.8, 1.0, 0.2, 0.4, 0.6],
+  "log_name": "temp_div_norm_02",
+  "contrasts": [0.2, 0.4, 0.6, 0.8, 1.0],
   "repeat_noises": [true, false],
   "lr": 0.001,
 
@@ -21,16 +21,16 @@
     {"is_conv": false,"n_channels": 1024}
   ],
   "adaptation_kwargs_additive": [
-    {"alpha_init":  0, "train_alpha": true, "beta_init": 0, "train_beta": true},
-    {"alpha_init":  0, "train_alpha": true, "beta_init": 0, "train_beta": true},
-    {"alpha_init":  0, "train_alpha": true, "beta_init": 0, "train_beta": true},
-    {"alpha_init":  0, "train_alpha": true, "beta_init": 0, "train_beta": true}
+    {"alpha_init":  0.9, "train_alpha": true, "beta_init": 2.8, "train_beta": true},
+    {"alpha_init":  0.9, "train_alpha": true, "beta_init": 1.7, "train_beta": true},
+    {"alpha_init":  0.9, "train_alpha": true, "beta_init": 1, "train_beta": true},
+    {"alpha_init":  0.9, "train_alpha": true, "beta_init": 1, "train_beta": true}
   ],
   "adaptation_kwargs_div_norm": [
-    {"epsilon":  1e-8, "K_init":  0, "train_K":  true, "alpha_init":  0, "train_alpha": true, "sigma_init": 0, "train_sigma": true},
-    {"epsilon":  1e-8, "K_init":  0, "train_K":  true, "alpha_init":  0, "train_alpha": true, "sigma_init": 0, "train_sigma": true},
-    {"epsilon":  1e-8, "K_init":  0, "train_K":  true, "alpha_init":  0, "train_alpha": true, "sigma_init": 0, "train_sigma": true},
-    {"epsilon":  1e-8, "K_init":  0, "train_K":  true, "alpha_init":  0, "train_alpha": true, "sigma_init": 0, "train_sigma": true}
+    {"epsilon":  1e-8, "K_init":  2, "train_K":  true, "alpha_init":  0.1, "train_alpha": true, "sigma_init": 0.3, "train_sigma": true},
+    {"epsilon":  1e-8, "K_init":  2, "train_K":  true, "alpha_init":  0.1, "train_alpha": true, "sigma_init": 0.3, "train_sigma": true},
+    {"epsilon":  1e-8, "K_init":  2, "train_K":  true, "alpha_init":  0.1, "train_alpha": true, "sigma_init": 0.3, "train_sigma": true},
+    {"epsilon":  1e-8, "K_init":  2, "train_K":  true, "alpha_init":  0.1, "train_alpha": true, "sigma_init": 0.3, "train_sigma": true}
   ],
   "adaptation_kwargs_div_norm_group": [
     {"epsilon":  1e-8, "K_init":  0, "train_K":  true, "alpha_init":  0, "train_alpha": true, "sigma_init": 0, "train_sigma": true},

@@ -3,6 +3,9 @@ from functools import partial
 
 # only use gpu 3
 import os
+
+from HookedRecursiveCNN import HookedRecursiveCNN
+
 os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
 from torch.utils.data import DataLoader
@@ -86,10 +89,14 @@ if __name__ == '__main__':
             visualize_first_batch_with_timesteps(train_loader, 8)
 
             for num_epoch in config["num_epochs"]:
-                model = Adaptation(10, layer_kwargs=layer_kwargs,
-                                   adaptation_kwargs=adaptation_kwargs, lr=config["lr"],
-                                   adaptation_module=adaptation_module,)
+                hooked_model = HookedRecursiveCNN(t_steps=10, layer_kwargs=layer_kwargs,
+                                                  adaptation_module=adaptation_module,
+                                                  adaptation_kwargs=adaptation_kwargs)
+                l, cache = hooked_model.run_with_cache(next(iter(train_loader))[0])
+                model = Adaptation(hooked_model, lr=config["lr"],)
                 trainer = pl.Trainer(max_epochs=num_epoch)
+                test_results = trainer.test(model, dataloaders=test_loader)
+
                 trainer.fit(model, train_loader, test_loader, )
 
                 # test
@@ -97,5 +104,6 @@ if __name__ == '__main__':
                 print(f'Contrast {contrast}, repeat_noise {repeat_noise}: {test_results[0]["test_acc"]}')
                 logger.log_metrics({'contrast': contrast, 'epoch': num_epoch, 'repeat_noise': repeat_noise, 'test_acc': test_results[0]["test_acc"]})
                 logger.save()
+                trainer.save_checkpoint(f'learned_models/{config["adaptation_module"]}_contrast_{contrast}_repeat_noise_{repeat_noise}_epoch_{num_epoch}.ckpt')
 
     print('stop')
