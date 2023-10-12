@@ -32,6 +32,7 @@ def visualize_first_batch_with_timesteps(dataloader, num_rows=8):
 
     # Create a subplot for each image and its timesteps
     fig, axes = plt.subplots(num_rows, num_cols, figsize=(num_cols * 2, num_rows * 2))
+    axes = axes.reshape(num_rows, num_cols)
 
     for i in range(num_rows):
         for j in range(num_cols):

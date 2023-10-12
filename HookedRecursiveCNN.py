@@ -11,22 +11,20 @@ class HookedRecursiveCNN(HookedRootModule):
         self.hks = {}
         for i in range(t_steps):
             for j in range(len(layer_kwargs)):
-                self.hks[f'conv.{j}.{i}'] = HookPoint()
-                self.hks[f'adapt.{j}.{i}'] = HookPoint()
+                self.hks[f'conv_{j}_{i}'] = HookPoint()
+                self.hks[f'adapt_{j}_{i}'] = HookPoint()
         self.hks = nn.ModuleDict(self.hks)
         self.t_steps = t_steps
 
         # activation functions, pooling and dropout layers
-        self.relu = nn.ReLU()
+        self.relu = nn.LeakyReLU()
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
         self.dropout = nn.Dropout()
 
-        self.conv_layers = []
-        for i, layer in enumerate(layer_kwargs[:-1]):  # last is fc layer
-            self.conv_layers.append(nn.Conv2d(**layer))
-        self.adapt_layers = []
-        for i, layer in enumerate(adaptation_kwargs[:-1]):
-            self.adapt_layers.append(adaptation_module(**layer))
+        self.conv_layers = nn.ModuleList(
+            nn.Conv2d(**layer) for layer in layer_kwargs[:-1])  # last is fc layer
+        self.adapt_layers = nn.ModuleList(
+            adaptation_module(**layer) for layer in adaptation_kwargs[:-1])
 
         # fc 1
         self.fc1 = nn.Linear(**layer_kwargs[3])
@@ -43,16 +41,17 @@ class HookedRecursiveCNN(HookedRootModule):
     def forward(self, X: torch.Tensor):
 
         actvs_prev = {}
-        if X.shape[1] <= 1:
+        if X.shape[1] < 1:
             raise ValueError(f'X must have shape [batch, timesteps, channel, height, width]')
         for t in range(X.shape[1]):
             cur_x = X[:, t, :, :, :]
 
             # iterate through conv and adapt
             for layer in range(len(self.conv_layers)):
-                cur_x = self.hks[f'conv.{layer}.{t}'](self.conv_layers[layer](cur_x))
+                cur_x = self.hks[f'conv_{layer}_{t}'](self.conv_layers[layer](cur_x))
                 actvs = actvs_prev.get(layer, self.adapt_layers[layer].get_init_actvs(cur_x, layer))
-                cur_x, *new_actvs = self.hks[f'adapt.{layer}.{t}'](self.adapt_layers[layer](cur_x, *actvs))
+                cur_x, *new_actvs = self.adapt_layers[layer](cur_x, *actvs)
+                cur_x = self.hks[f'adapt_{layer}_{t}'](cur_x)
                 actvs_prev[layer] = new_actvs
                 cur_x = self.relu(cur_x)
                 if layer < len(self.conv_layers) - 1:

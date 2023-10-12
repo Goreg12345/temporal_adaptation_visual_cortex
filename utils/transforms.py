@@ -23,11 +23,12 @@ class RandomRepeatedNoise:
     """
     Randomly adds noise to the image but the same noise is added to all timesteps
     """
-    def __init__(self, contrast=1, repeat_noise_at_test=True, first_in_line=False):
-        self.noise_seed = dict()
+    def __init__(self, contrast='random', repeat_noise_at_test=True, first_in_line=False,
+                 noise_seed=None, noise_seed_test=None):
+        self.noise_seed = noise_seed if noise_seed else dict()
         self.contrast = contrast
         self.repeat_noise_at_test = repeat_noise_at_test
-        self.noise_seed_test = dict()
+        self.noise_seed_test = noise_seed_test if noise_seed_test else dict()
 
     def __call__(self, x, index, _, stage='adapter', first_in_line=False):
         if stage == 'adapter':
@@ -60,13 +61,15 @@ class RandomRepeatedNoise:
                     rng_state = torch.get_rng_state()
                     torch.manual_seed(self.noise_seed_test[index])
             noise = torch.rand_like(x) -.5
+            mean = torch.mean(x)
+            if self.contrast == 'random':
+                contrast = torch.rand(1)
+            else:
+                contrast = self.contrast
+            adjusted_image = (x - mean) * contrast + mean
+
             torch.set_rng_state(rng_state)
 
-            mean = torch.mean(x)
-            # Apply contrast adjustment
-            adjusted_image = (x - mean) * self.contrast + mean
-            # mixing_ratio = 0.7
-            # noised_image = x * (1 - mixing_ratio) + noise * mixing_ratio
             # return noised_image
             return (noise + adjusted_image).clamp(0,1)
 

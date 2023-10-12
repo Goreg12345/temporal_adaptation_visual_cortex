@@ -37,7 +37,7 @@ class Adaptation(pl.LightningModule):
         return loss
 
     def on_train_batch_end(self, outputs: STEP_OUTPUT, batch: Any, batch_idx: int) -> None:
-        for i, adapt in enumerate([self.adapt1, self.adapt2, self.adapt3]):
+        for i, adapt in enumerate(self.model.adapt_layers):
             if not hasattr(adapt, 'params'):
                 continue
             metrics = adapt.params()

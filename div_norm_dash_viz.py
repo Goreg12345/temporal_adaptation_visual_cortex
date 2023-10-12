@@ -9,13 +9,14 @@ import numpy as np
 
 # Function to compute response r(t) and update accumulated value G(t)
 def compute_response(L_t, K, sigma, alpha, G_prev):
+    G_prev = min(G_prev, K)
     r_t = max(L_t * ((K - G_prev) ** 0.5) / sigma, 0)
-    G_t = (1 - alpha) * G_prev + alpha * r_t
-    return r_t, G_t
+    G_prev = (1 - alpha) * G_prev + alpha * r_t
+    return r_t, G_prev
 
 
 # Original input data
-L_t_series = np.array([0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1])
+L_t_series = np.array([0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1]) * -1
 colors = ['blue', 'green', 'red']
 
 # Initialize the app and use a bootstrap style
@@ -34,29 +35,29 @@ app.layout = dbc.Container([
         dbc.Col([
             html.H6("Layer 1 Parameters:"),
             html.Label("K:"),
-            dcc.Slider(id='K1-slider', min=-1, max=4, step=0.1, value=0.2),
+            dcc.Slider(id='K1-slider', min=-1, max=4, step=0.1, value=2.),
             html.Label("alpha:"),
-            dcc.Slider(id='alpha1-slider', min=-1, max=4, step=0.1, value=0.02),
+            dcc.Slider(id='alpha1-slider', min=-1, max=4, step=0.1, value=0.1),
             html.Label("sigma:"),
-            dcc.Slider(id='sigma1-slider', min=-1, max=4, step=0.1, value=0.84),
+            dcc.Slider(id='sigma1-slider', min=-1, max=4, step=0.1, value=1.),
         ], width=4),
         dbc.Col([
             html.H6("Layer 2 Parameters:"),
             html.Label("K:"),
-            dcc.Slider(id='K2-slider', min=-1, max=4, step=0.1, value=0.28),
+            dcc.Slider(id='K2-slider', min=-1, max=4, step=0.1, value=2.),
             html.Label("alpha:"),
-            dcc.Slider(id='alpha2-slider', min=-1, max=4, step=0.1, value=0.04),
+            dcc.Slider(id='alpha2-slider', min=-1, max=4, step=0.1, value=.1),
             html.Label("sigma:"),
-            dcc.Slider(id='sigma2-slider', min=-1, max=4, step=0.1, value=2.3),
+            dcc.Slider(id='sigma2-slider', min=-1, max=4, step=0.1, value=1),
         ], width=4),
         dbc.Col([
             html.H6("Layer 3 Parameters:"),
             html.Label("K:"),
-            dcc.Slider(id='K3-slider', min=-1, max=4, step=0.1, value=0.12),
+            dcc.Slider(id='K3-slider', min=-1, max=4, step=0.1, value=2.),
             html.Label("alpha:"),
-            dcc.Slider(id='alpha3-slider', min=-1, max=4, step=0.1, value=1.52),
+            dcc.Slider(id='alpha3-slider', min=-1, max=4, step=0.1, value=.1),
             html.Label("sigma:"),
-            dcc.Slider(id='sigma3-slider', min=-1, max=4, step=0.1, value=3.7),
+            dcc.Slider(id='sigma3-slider', min=-1, max=4, step=0.1, value=1.),
         ], width=4)
     ]),
 ], fluid=True)

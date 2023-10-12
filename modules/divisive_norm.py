@@ -18,7 +18,7 @@ class DivisiveNorm(nn.Module):
 
         # clamp alpha between 0 and 1?
     def get_init_actvs(self, x, num_layer):
-        return [torch.ones_like(x, requires_grad=False)]
+        return [torch.zeros_like(x, requires_grad=False)]
 
     def params(self) -> Dict[str, torch.Tensor]:
         return {

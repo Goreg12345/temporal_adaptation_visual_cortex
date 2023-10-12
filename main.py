@@ -28,7 +28,6 @@ from modules.lateral_recurrence import LateralRecurrence
 from utils.transforms import Identity, RandomRepeatedNoise, Grey, MeanFlat
 from utils.visualization import visualize_first_batch_with_timesteps
 
-
 if __name__ == '__main__':
 
     with open('config.json', 'r') as f:
@@ -39,7 +38,6 @@ if __name__ == '__main__':
         layer_kwargs = config["layer_kwargs_fmnist"]
     elif config["dataset"] == 'cifar10':
         layer_kwargs = config["layer_kwargs_cifar10"]
-
 
     # Define transforms for data augmentation
     transform = transforms.Compose([
@@ -66,16 +64,37 @@ if __name__ == '__main__':
 
     for contrast in config["contrasts"]:
         for repeat_noise in config["repeat_noises"]:
-            noise_transformer = RandomRepeatedNoise(contrast=contrast, repeat_noise_at_test=repeat_noise)
-            noise_transformer_test = partial(noise_transformer, stage='test')
-            first_in_line_transformer = partial(noise_transformer, stage='test', first_in_line=True)
+            if repeat_noise == 'both':
+                train_sets = []
+                test_sets = []
+                for repeat_noise_at_test in [True, False]:
+                    noise_transformer = RandomRepeatedNoise(contrast=contrast,
+                                                            repeat_noise_at_test=repeat_noise_at_test)
+                    noise_transformer_test = partial(noise_transformer, stage='test')
+                    first_in_line_transformer = partial(noise_transformer, stage='test', first_in_line=True)
 
-            timestep_transforms = [MeanFlat()] + [noise_transformer] * 5 + [MeanFlat()] + [first_in_line_transformer] + [noise_transformer_test] * 2
-            # Create instances of the Fashion MNIST dataset
-            train_dataset = NoisyTemporalDataset('train', dataset=dataset, transform=transform,
-                                                 img_to_timesteps_transforms=timestep_transforms)
-            test_dataset = NoisyTemporalDataset('test', dataset=dataset, transform=transform,
-                                                 img_to_timesteps_transforms=timestep_transforms)
+                    timestep_transforms = [MeanFlat()] + [noise_transformer] * 6 + [MeanFlat()] + [
+                        first_in_line_transformer] + [noise_transformer_test]
+                    # Create instances of the Fashion MNIST dataset
+                    train_sets.append(NoisyTemporalDataset('train', dataset=dataset, transform=transform,
+                                                           img_to_timesteps_transforms=timestep_transforms))
+                    test_sets.append(NoisyTemporalDataset('test', dataset=dataset, transform=transform,
+                                                          img_to_timesteps_transforms=timestep_transforms))
+                train_dataset = torch.utils.data.ConcatDataset(train_sets)
+                test_dataset = torch.utils.data.ConcatDataset(test_sets)
+            else:
+                noise_transformer = RandomRepeatedNoise(contrast=contrast, repeat_noise_at_test=repeat_noise)
+                noise_transformer_test = partial(noise_transformer, stage='test')
+                first_in_line_transformer = partial(noise_transformer, stage='test', first_in_line=True)
+
+                timestep_transforms = [MeanFlat()] + [noise_transformer] * 6 + [MeanFlat()] + [
+                    first_in_line_transformer] + [noise_transformer_test]
+                # timestep_transforms = [first_in_line_transformer]
+                # Create instances of the Fashion MNIST dataset
+                train_dataset = NoisyTemporalDataset('train', dataset=dataset, transform=transform,
+                                                     img_to_timesteps_transforms=timestep_transforms)
+                test_dataset = NoisyTemporalDataset('test', dataset=dataset, transform=transform,
+                                                    img_to_timesteps_transforms=timestep_transforms)
 
             # Create the DataLoaders for the Fashion MNIST dataset
             train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=3)
@@ -83,7 +102,7 @@ if __name__ == '__main__':
 
             # Print the length of the DataLoader
             print(f'Train DataLoader: {len(train_loader)} batches')
-            #print(f'Test DataLoader: {len(test_loader)} batches')
+            # print(f'Test DataLoader: {len(test_loader)} batches')
 
             # Visualize the first batch of images
             visualize_first_batch_with_timesteps(train_loader, 8)
@@ -93,8 +112,9 @@ if __name__ == '__main__':
                                                   adaptation_module=adaptation_module,
                                                   adaptation_kwargs=adaptation_kwargs)
                 l, cache = hooked_model.run_with_cache(next(iter(train_loader))[0])
-                model = Adaptation(hooked_model, lr=config["lr"],)
+                model = Adaptation(hooked_model, lr=config["lr"], )
                 trainer = pl.Trainer(max_epochs=num_epoch)
+                hooked_model.cuda()
                 test_results = trainer.test(model, dataloaders=test_loader)
 
                 trainer.fit(model, train_loader, test_loader, )
@@ -102,8 +122,10 @@ if __name__ == '__main__':
                 # test
                 test_results = trainer.test(model, dataloaders=test_loader)
                 print(f'Contrast {contrast}, repeat_noise {repeat_noise}: {test_results[0]["test_acc"]}')
-                logger.log_metrics({'contrast': contrast, 'epoch': num_epoch, 'repeat_noise': repeat_noise, 'test_acc': test_results[0]["test_acc"]})
+                logger.log_metrics({'contrast': contrast, 'epoch': num_epoch, 'repeat_noise': repeat_noise,
+                                    'test_acc': test_results[0]["test_acc"]})
                 logger.save()
-                trainer.save_checkpoint(f'learned_models/{config["adaptation_module"]}_contrast_{contrast}_repeat_noise_{repeat_noise}_epoch_{num_epoch}.ckpt')
+                trainer.save_checkpoint(
+                    f'learned_models/leaky_{config["adaptation_module"]}_contrast_{contrast}_repeat_noise_{repeat_noise}_epoch_{num_epoch}.ckpt')
 
     print('stop')
