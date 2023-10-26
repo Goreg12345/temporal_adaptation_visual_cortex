@@ -1,3 +1,5 @@
+from typing import Dict
+
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
@@ -16,6 +18,12 @@ class ExponentialDecay(nn.Module):
         """ Get the initial activations. """
         init_actvs = (torch.zeros_like(x, requires_grad=False), torch.zeros_like(x, requires_grad=False))
         return init_actvs
+
+    def params(self) -> Dict[str, torch.Tensor]:
+        return {
+            'alpha': self.alpha,
+            'beta': self.beta,
+        }
 
     def forward(self, x, previous_input, previous_state):
         """

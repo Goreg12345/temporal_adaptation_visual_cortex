@@ -49,10 +49,12 @@ class HookedRecursiveCNN(HookedRootModule):
             # iterate through conv and adapt
             for layer in range(len(self.conv_layers)):
                 cur_x = self.hks[f'conv_{layer}_{t}'](self.conv_layers[layer](cur_x))
+
                 actvs = actvs_prev.get(layer, self.adapt_layers[layer].get_init_actvs(cur_x, layer))
                 cur_x, *new_actvs = self.adapt_layers[layer](cur_x, *actvs)
                 cur_x = self.hks[f'adapt_{layer}_{t}'](cur_x)
                 actvs_prev[layer] = new_actvs
+
                 cur_x = self.relu(cur_x)
                 if layer < len(self.conv_layers) - 1:
                     cur_x = self.pool(cur_x)

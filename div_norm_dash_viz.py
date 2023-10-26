@@ -16,7 +16,7 @@ def compute_response(L_t, K, sigma, alpha, G_prev):
 
 
 # Original input data
-L_t_series = np.array([0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1]) * -1
+L_t_series = np.array([1, 0, 1, ])
 colors = ['blue', 'green', 'red']
 
 # Initialize the app and use a bootstrap style

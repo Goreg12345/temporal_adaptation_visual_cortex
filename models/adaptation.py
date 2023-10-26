@@ -8,6 +8,7 @@ from torchmetrics.functional import accuracy
 import pytorch_lightning as pl
 
 from HookedRecursiveCNN import HookedRecursiveCNN
+from UpdateToWeightNorm import RelativeGradientUpdateNorm
 from modules.exponential_decay import ExponentialDecay
 
 
@@ -20,6 +21,7 @@ class Adaptation(pl.LightningModule):
         self.lr = lr
 
         self.loss = nn.CrossEntropyLoss()
+        #self.update_to_weight_metric = RelativeGradientUpdateNorm()
 
     def forward(self, X):
         # X [batch, sequence, channel, height, width]
@@ -42,7 +44,17 @@ class Adaptation(pl.LightningModule):
                 continue
             metrics = adapt.params()
             for k, v in metrics.items():
-                self.log(f'{k}_{i}', v)
+                # if v is scalar
+                if v.dim() == 0:
+                    self.log(f'{k}_{i}', v)
+                # if v is tensor
+                else:
+                    # log histogram
+                    self.logger.experiment.add_histogram(f'{k}_{i}', v, self.global_step)
+        #self.update_to_weight_metric.update(self.model.named_parameters())
+        #avg_update_to_weight_norm = self.update_to_weight_metric.compute()
+        #for k, v in avg_update_to_weight_norm.items():
+        #    self.log(f'avg_update_to_weight_norm/{k}', v)
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
@@ -68,3 +80,4 @@ class Adaptation(pl.LightningModule):
 
     def backward(self, loss, *args: Any, **kwargs: Any) -> None:
         loss.backward(*args, **kwargs)
+        return

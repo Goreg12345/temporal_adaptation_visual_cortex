@@ -1,12 +1,14 @@
 import json
 from functools import partial
+import sys
 
 # only use gpu 3
 import os
 
-from HookedRecursiveCNN import HookedRecursiveCNN
-
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+if len(sys.argv) > 1:
+    os.environ["CUDA_VISIBLE_DEVICES"] = sys.argv[1]
+else:
+    os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
@@ -18,6 +20,8 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.loggers import CSVLogger
 
+from HookedRecursiveCNN import HookedRecursiveCNN
+from modules.div_norm_channel import DivisiveNormChannel
 from models.adaptation import Adaptation
 from models.additive_adaptation import AdditiveAdaptation
 from models.noisy_dataloader import NoisyTemporalDataset
@@ -29,8 +33,11 @@ from utils.transforms import Identity, RandomRepeatedNoise, Grey, MeanFlat
 from utils.visualization import visualize_first_batch_with_timesteps
 
 if __name__ == '__main__':
-
-    with open('config.json', 'r') as f:
+    if len(sys.argv) > 2:
+        config_path = sys.argv[2]
+    else:
+        config_path = 'config.json'
+    with open(config_path, 'r') as f:
         config = json.load(f)
 
     dataset = config["dataset"]
@@ -59,6 +66,9 @@ if __name__ == '__main__':
     elif config["adaptation_module"] == 'DivisiveNormGroup':
         adaptation_module = DivisiveNormGroup
         adaptation_kwargs = config["adaptation_kwargs_div_norm_group"]
+    elif config["adaptation_module"] == 'DivisiveNormChannel':
+        adaptation_module = DivisiveNormChannel
+        adaptation_kwargs = config["adaptation_kwargs_div_norm_channel"]
     else:
         raise ValueError(f'Adaptation module {config["adaptation_module"]} not implemented')
 
@@ -75,6 +85,7 @@ if __name__ == '__main__':
 
                     timestep_transforms = [MeanFlat()] + [noise_transformer] * 6 + [MeanFlat()] + [
                         first_in_line_transformer] + [noise_transformer_test]
+                    timestep_transforms = [noise_transformer] + [MeanFlat()] + [first_in_line_transformer]
                     # Create instances of the Fashion MNIST dataset
                     train_sets.append(NoisyTemporalDataset('train', dataset=dataset, transform=transform,
                                                            img_to_timesteps_transforms=timestep_transforms))
@@ -113,9 +124,36 @@ if __name__ == '__main__':
                                                   adaptation_kwargs=adaptation_kwargs)
                 l, cache = hooked_model.run_with_cache(next(iter(train_loader))[0])
                 model = Adaptation(hooked_model, lr=config["lr"], )
-                trainer = pl.Trainer(max_epochs=num_epoch)
+
+                # load checkpoint
+                #checkpoint_path = f"learned_models/pretrained_divnormchannel_DivisiveNormChannel_contrast_0.2_repeat_noise_True_epoch_8.ckpt"
+                #checkpoint = torch.load(checkpoint_path, map_location='cpu')  # Load checkpoint
+                #state_dict = checkpoint['state_dict']  # Extract state dict
+
+                # cause pretrained model was trained with scalar adaptation params
+                # if adaptation_module == DivisiveNormChannel:
+                #     for k, v in state_dict.items():
+                #         if 'adapt' in k:
+                #             state_dict[k] = torch.ones((adaptation_kwargs[int(k.split('.')[-2])]['n_channels'],), dtype=torch.float32) * v
+                # model.load_state_dict(state_dict)
+
+                # only train adaptation layers
+                # for param in model.model.conv_layers.parameters():
+                #     param.requires_grad = False
+                # for param in model.model.fc1.parameters():
+                #     param.requires_grad = False
+                # for param in model.model.decoder.parameters():
+                #     param.requires_grad = False
+                # for param in model.model.adapt_layers.parameters():
+                #     param.requires_grad = True
+
+                tb_logger = TensorBoardLogger("lightning_logs",
+                                           name=f'{config["adaptation_module"]}_contrast_{contrast}_repeat_noise_{repeat_noise}_epoch_{num_epoch}',
+                                           version=f't=3_02_{config["adaptation_module"]}_contrast_{contrast}_repeat_noise_{repeat_noise}_epoch_{num_epoch}')
+
+                trainer = pl.Trainer(max_epochs=num_epoch, logger=tb_logger)
                 hooked_model.cuda()
-                test_results = trainer.test(model, dataloaders=test_loader)
+                # test_results = trainer.test(model, dataloaders=test_loader)
 
                 trainer.fit(model, train_loader, test_loader, )
 
@@ -126,6 +164,6 @@ if __name__ == '__main__':
                                     'test_acc': test_results[0]["test_acc"]})
                 logger.save()
                 trainer.save_checkpoint(
-                    f'learned_models/leaky_{config["adaptation_module"]}_contrast_{contrast}_repeat_noise_{repeat_noise}_epoch_{num_epoch}.ckpt')
+                    f'learned_models/t=3_{config["adaptation_module"]}_contrast_{contrast}_repeat_noise_{repeat_noise}_epoch_{num_epoch}.ckpt')
 
-    print('stop')
+                print('stop')

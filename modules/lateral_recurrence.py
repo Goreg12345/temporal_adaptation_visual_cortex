@@ -14,6 +14,11 @@ class LateralRecurrence(nn.Module):
             self.lat_rec = nn.Linear(in_features=n_channels, out_features=n_channels,)
         self.relu = nn.ReLU()
 
+    def get_params(self):
+        return {
+            'lat_rec': self.lat_rec,
+        }
+
     def get_init_actvs(self, x, num_layer):
         """ Get the initial activations. """
         # if shape is 4D, then we are dealing with a convolutional layer

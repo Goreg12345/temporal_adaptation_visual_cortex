@@ -19,6 +19,13 @@ class DivisiveNormGroup(nn.Module):
         init_actvs = [torch.zeros_like(x, requires_grad=False)]
         return init_actvs
 
+    def params(self):
+        return {
+            'K': self.K,
+            'alpha': self.alpha,
+            'sigma': self.sigma,
+        }
+
     def forward(self, x, G_previous):
         # Initial linear response
         linear_response = torch.relu(x)
@@ -47,8 +54,9 @@ class DivisiveNormGroup(nn.Module):
         response_padded = torch.nn.functional.pad(response, (1, 1, 1, 1))
 
         # Compute total activity of surrounding units
+        height, width = response.shape[2:]
         surrounding_activity_sum = sum([
-            response_padded[:, :, i:self.height + 1 + i, j:self.width + 1 + j]
+            response_padded[:, :, i:height + 1 + i, j:width + 1 + j]
             for i in [-1, 0, 1] for j in [-1, 0, 1]
         ])
 
