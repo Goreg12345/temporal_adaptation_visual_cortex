@@ -5,6 +5,8 @@ import sys
 # only use gpu 3
 import os
 
+import wandb
+
 if len(sys.argv) > 1:
     os.environ["CUDA_VISIBLE_DEVICES"] = sys.argv[1]
 else:
@@ -53,6 +55,7 @@ if __name__ == '__main__':
     ])
 
     logger = CSVLogger(config["log_dir"], name=config["log_name"])
+
 
     if config["adaptation_module"] == 'LateralRecurrence':
         adaptation_module = LateralRecurrence
@@ -118,8 +121,10 @@ if __name__ == '__main__':
             # Visualize the first batch of images
             visualize_first_batch_with_timesteps(train_loader, 8)
 
+            t_steps = next(iter(train_loader))[0].shape[1]
+
             for num_epoch in config["num_epochs"]:
-                hooked_model = HookedRecursiveCNN(t_steps=10, layer_kwargs=layer_kwargs,
+                hooked_model = HookedRecursiveCNN(t_steps=t_steps, layer_kwargs=layer_kwargs,
                                                   adaptation_module=adaptation_module,
                                                   adaptation_kwargs=adaptation_kwargs)
                 l, cache = hooked_model.run_with_cache(next(iter(train_loader))[0])
@@ -151,9 +156,13 @@ if __name__ == '__main__':
                                            name=f'{config["adaptation_module"]}_contrast_{contrast}_repeat_noise_{repeat_noise}_epoch_{num_epoch}',
                                            version=f't=3_02_{config["adaptation_module"]}_contrast_{contrast}_repeat_noise_{repeat_noise}_epoch_{num_epoch}')
 
-                trainer = pl.Trainer(max_epochs=num_epoch, logger=tb_logger)
+                # wandb.init(project='ai-thesis', config=config, entity='ai-thesis', name=f'{config["log_name"]}_{config["adaptation_module"]}_c_{contrast}_rep_{repeat_noise}_ep_{num_epoch}')
+                wandb_logger = pl.loggers.WandbLogger(project='ai-thesis', config=config, name=f'{config["adaptation_module"]}_c_{contrast}_rep_{repeat_noise}_ep_{num_epoch}_{config["log_name"]}')
+
+                trainer = pl.Trainer(max_epochs=num_epoch, logger=wandb_logger)
                 hooked_model.cuda()
                 # test_results = trainer.test(model, dataloaders=test_loader)
+                wandb_logger.watch(hooked_model, log='all', log_freq=1000)
 
                 trainer.fit(model, train_loader, test_loader, )
 

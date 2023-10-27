@@ -5,48 +5,34 @@ from torchmetrics import Metric
 
 
 class RelativeGradientUpdateNorm(Metric):
-    def __init__(self, dist_sync_on_step=False):
+    def __init__(self, params, dist_sync_on_step=False):
         super().__init__(dist_sync_on_step=dist_sync_on_step)
 
-        self.add_state("param_updates", default=[], dist_reduce_fx=None)
-        self.add_state("layer_names", default=[], dist_reduce_fx=None)
+        for name, p in params:
+            self.add_state(name, default=p.clone().detach(), dist_reduce_fx=None)
 
     def update(self, params):
-        current_params = {name: p.clone().detach() for name, p in params}
-
-        # If this is the first call, just save the current parameters
-        if not self.param_updates:
-            self.param_updates.append(current_params)
-            self.layer_names.extend(list(current_params.keys()))
-            return
-
         # Compute parameter differences and their norms
-        param_diffs = {}
-        for name, p in current_params.items():
-            prev_p = self.param_updates[-1][name]
+        for name, p in params:
+            p = p.clone().detach()
+            prev_ps = getattr(self, name)
+            if type(prev_ps) == torch.Tensor:
+                prev_ps = [prev_ps]
+            prev_p = prev_ps[-1]
             # Calculate the norm of the update relative to the norm of the parameter
             relative_norm = torch.norm(p - prev_p) / (torch.norm(prev_p) + 1e-6)  # Prevent division by zero
-            param_diffs[name] = relative_norm
-
-        # Save the norms and the current parameters for the next round
-        self.param_updates[-1] = param_diffs
-        self.param_updates.append(current_params)
+            prev_ps[-1] = relative_norm
+            prev_ps.append(p)
+            setattr(self, name, prev_ps)
+            self._defaults[name] = prev_ps
 
     def compute(self):
-        # Skip the first entry since it's the initial parameters, not an update
-        updates = self.param_updates[:-1]  # exclude the last since it's the final parameters, not an update
-
-        if not updates:
-            return {}
-
-        # Compute average update norms per layer
-        avg_update_norms = {}
-        for name in self.layer_names:
-            if type(name) == Dict:
-                print('stop')
-            norms = [update[name] for update in updates]
-            avg_update_norms[name] = torch.stack(norms).mean().item()
-
-        self.param_updates = self.param_updates[-1:]
-
-        return avg_update_norms
+        updates = {}
+        for name, p in self._defaults.items():
+            # Skip the first entry since it's the initial parameters, not an update
+            if not p[:-1]:
+                continue
+            updates[name] = torch.stack(p[:-1]).mean().item()
+            self._defaults[name] = [p[-1]]
+            setattr(self, name, [p[-1]])
+        return updates

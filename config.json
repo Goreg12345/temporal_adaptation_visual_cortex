@@ -1,5 +1,5 @@
 {
-  "num_epochs": [20],
+  "num_epochs": [2],
   "dataset": "fashion_mnist",
   "log_dir": "debug_div_norm",
   "log_name": "temp_div_norm_channel",
@@ -27,7 +27,7 @@
     {"alpha_init":  0.9, "train_alpha": true, "beta_init": 1, "train_beta": true}
   ],
   "adaptation_kwargs_div_norm": [
-    {"epsilon":  1e-8, "K_init":  1.0, "train_K":  true, "alpha_init":  0.5, "train_alpha": true, "sigma_init": 1.0, "train_sigma": true},
+    {"epsilon":  1e-8, "K_init":  0.2, "train_K":  true, "alpha_init":  -2.0, "train_alpha": true, "sigma_init": 0.1, "train_sigma": true},
     {"epsilon":  1e-8, "K_init":  1.0, "train_K":  false, "alpha_init":  0.0, "train_alpha": false, "sigma_init": 1.0, "train_sigma": false},
     {"epsilon":  1e-8, "K_init":  1.0, "train_K":  false, "alpha_init":  0.0, "train_alpha": false, "sigma_init": 1.0, "train_sigma": false},
     {"epsilon":  1e-8, "K_init":  1.0, "train_K":  false, "alpha_init":  0.0, "train_alpha": false, "sigma_init": 1.0, "train_sigma": false}
