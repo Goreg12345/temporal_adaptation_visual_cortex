@@ -10,9 +10,9 @@ from torchmetrics.functional import accuracy
 import pytorch_lightning as pl
 
 from HookedRecursiveCNN import HookedRecursiveCNN
-from UpdateToWeightNorm import RelativeGradientUpdateNorm
-from dead_neurons_counter import DeadNeuronMetric
-from modules.exponential_decay import ExponentialDecay
+from metrics.sparsity import Sparsity
+from metrics.update_to_weight_norm import RelativeGradientUpdateNorm
+from metrics.dead_neurons_counter import DeadNeuronMetric
 
 
 class Adaptation(pl.LightningModule):
@@ -29,6 +29,7 @@ class Adaptation(pl.LightningModule):
         self.update_to_weight_metric = RelativeGradientUpdateNorm(self.model.named_parameters())
         self.dead_neurons_counter = DeadNeuronMetric(n_adapt_layers=len(model.adapt_layers), n_timesteps=model.t_steps)
         self.dead_feature_maps_counter = DeadNeuronMetric(n_adapt_layers=len(model.adapt_layers), n_timesteps=model.t_steps, per='map')
+        self.sparsity = Sparsity(n_adapt_layers=len(model.adapt_layers), timestep=-1)
 
     def forward(self, X):
         # X [batch, sequence, channel, height, width]
@@ -40,11 +41,16 @@ class Adaptation(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         x, y = batch
-        y_hat = self(x)
+        y_hat, cache = self.model.run_with_cache(x)
         loss = self.loss(y_hat, y)
+
+        # METRICS
         self.log('train_loss', loss)
-        self.dead_neurons_counter.update(self.model, batch)
-        self.dead_feature_maps_counter.update(self.model, batch)
+        self.dead_neurons_counter.update(cache)
+        self.dead_feature_maps_counter.update(cache)
+        self.sparsity.update(cache)
+        self.log_dict(self.sparsity.compute())
+
         return loss
 
     def on_train_batch_end(self, outputs: STEP_OUTPUT, batch: Any, batch_idx: int) -> None:
@@ -69,10 +75,6 @@ class Adaptation(pl.LightningModule):
         avg_update_to_weight_norm = self.update_to_weight_metric.compute()
         for k, v in avg_update_to_weight_norm.items():
             self.log(f'avg_update_to_weight_norm/{k}', v)
-
-    def log_dict(self, d):
-        for k, v in d.items():
-            self.log(k, v)
 
     def on_train_epoch_end(self) -> None:
         # log dead neurons
