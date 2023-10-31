@@ -10,6 +10,9 @@ from torchmetrics.functional import accuracy
 import pytorch_lightning as pl
 
 from HookedRecursiveCNN import HookedRecursiveCNN
+from metrics.accuracy_per_setting import AccuracyPerSetting
+from metrics.accuracy_difference import AccuracyDifference
+from metrics.cumulative_activation_diff import CumulativeActivationDiff
 from metrics.sparsity import Sparsity
 from metrics.update_to_weight_norm import RelativeGradientUpdateNorm
 from metrics.dead_neurons_counter import DeadNeuronMetric
@@ -30,6 +33,9 @@ class Adaptation(pl.LightningModule):
         self.dead_neurons_counter = DeadNeuronMetric(n_adapt_layers=len(model.adapt_layers), n_timesteps=model.t_steps)
         self.dead_feature_maps_counter = DeadNeuronMetric(n_adapt_layers=len(model.adapt_layers), n_timesteps=model.t_steps, per='map')
         self.sparsity = Sparsity(n_adapt_layers=len(model.adapt_layers), timestep=-1)
+        self.acc_per_setting = AccuracyPerSetting(contrasts=[0.2, 0.4, 0.6, 0.8, 1.0], repeated_noise=[True, False])
+        self.acc_diff = AccuracyDifference(contrasts=[0.2, 0.4, 0.6, 0.8, 1.0], repeated_noise=[True, False])
+        self.cum_actv_diff = CumulativeActivationDiff(contrasts=[0.2, 0.4, 0.6, 0.8, 1.0], repeated_noise=[True, False], n_layers=len(model.adapt_layers))
 
     def forward(self, X):
         # X [batch, sequence, channel, height, width]
@@ -50,6 +56,15 @@ class Adaptation(pl.LightningModule):
         self.dead_feature_maps_counter.update(cache)
         self.sparsity.update(cache)
         self.log_dict(self.sparsity.compute())
+
+        if batch_idx % 100 == 0:  # because this is timeconsuming and not super important
+            # activations histogram
+            for layer in range(len(self.model.adapt_layers)):
+                self.logger.experiment.log({f'actvs/conv_{layer}_0': wandb.Histogram(cache[f'hks.conv_{layer}_0'].detach().cpu())})
+                last_timestep = max([int(key.split('_')[-1]) for key in cache.keys() if 'adapt' in key])
+                self.logger.experiment.log({f'actvs/conv_{layer}_last': wandb.Histogram(cache[f'hks.conv_{layer}_{last_timestep}'].detach().cpu())})
+                self.logger.experiment.log({f'actvs/adapt_{layer}_0': wandb.Histogram(cache[f'hks.adapt_{layer}_0'].detach().cpu())})
+                self.logger.experiment.log({f'actvs/adapt_{layer}_last': wandb.Histogram(cache[f'hks.adapt_{layer}_{last_timestep}'].detach().cpu())})
 
         return loss
 
@@ -82,26 +97,44 @@ class Adaptation(pl.LightningModule):
         self.log_dict(self.dead_feature_maps_counter.compute())
 
     def validation_step(self, batch, batch_idx):
-        x, y = batch
-        y_hat = self(x)
+        x, y, contrast, rep_noise = batch
+        y_hat, cache = self.model.run_with_cache(x)
         loss = self.loss(y_hat, y)
         self.log('val_loss', loss)
         # accuracy
         preds = torch.argmax(y_hat, dim=1)
         acc = accuracy(preds, y, task='multiclass', num_classes=10)
         self.log('val_acc', acc)
+
+        self.acc_per_setting.update(y_hat, y, contrast, rep_noise)
+        self.acc_diff.update(y_hat, y, contrast, rep_noise)
+        self.cum_actv_diff.update(cache, contrast, rep_noise)
         return loss
 
+    def on_validation_epoch_end(self) -> None:
+        self.log_dict(self.acc_per_setting.compute())
+        self.log_dict(self.acc_diff.compute())
+        self.log_dict(self.cum_actv_diff.compute())
+
     def test_step(self, batch, batch_idx):
-        x, y = batch
-        y_hat = self(x)
+        x, y, contrast, rep_noise = batch
+        y_hat, cache = self.model.run_with_cache(x)
         loss = self.loss(y_hat, y)
         self.log('test_loss', loss)
         # accuracy
         preds = torch.argmax(y_hat, dim=1)
         acc = accuracy(preds, y, task='multiclass', num_classes=10)
         self.log('test_acc', acc)
+
+        self.acc_per_setting.update(y_hat, y, contrast, rep_noise)
+        self.acc_diff.update(y_hat, y, contrast, rep_noise)
+        self.cum_actv_diff.update(cache, contrast, rep_noise)
         return loss
+
+    def on_test_epoch_end(self) -> None:
+        self.log_dict(self.acc_per_setting.compute())
+        self.log_dict(self.acc_diff.compute())
+        self.log_dict(self.cum_actv_diff.compute())
 
     def backward(self, loss, *args: Any, **kwargs: Any) -> None:
         loss.backward(*args, **kwargs)

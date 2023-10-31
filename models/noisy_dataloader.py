@@ -37,7 +37,6 @@ class NoisyTemporalDataset(Dataset):
 
         # Stack the augmented images along the timestep dimension
         img_timesteps = torch.stack(img_timesteps, dim=0)
-
         return img_timesteps, target
 
     def __len__(self):

@@ -12,7 +12,7 @@ if len(sys.argv) > 1:
 else:
     os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 import torchvision.transforms as transforms
 import torch
 
@@ -56,7 +56,6 @@ if __name__ == '__main__':
 
     logger = CSVLogger(config["log_dir"], name=config["log_name"])
 
-
     if config["adaptation_module"] == 'LateralRecurrence':
         adaptation_module = LateralRecurrence
         adaptation_kwargs = config["adaptation_kwargs_lateral"]
@@ -75,6 +74,28 @@ if __name__ == '__main__':
     else:
         raise ValueError(f'Adaptation module {config["adaptation_module"]} not implemented')
 
+
+    class EvalDataWrapper(Dataset):
+        """Simple Wrapper that adds contrast and repeated noise information to the dataset to power
+        the evaluation metrics"""
+
+        def __init__(self, dataset, contrast, rep_noise):
+            self.dataset = dataset
+            self.contrast = float(contrast)
+            self.rep_noise = bool(rep_noise)
+
+        def __len__(self):
+            return len(self.dataset)
+
+        def __getitem__(self, idx):
+            x, y = self.dataset[idx]
+            if type(idx) == int:
+                idx = torch.tensor([idx])
+            contrast = torch.full_like(idx, self.contrast, dtype=torch.float)
+            rep_noise = torch.full_like(idx, self.rep_noise, dtype=torch.bool)
+            return x, y, contrast, rep_noise
+
+
     for contrast in config["contrasts"]:
         for repeat_noise in config["repeat_noises"]:
             if repeat_noise == 'both':
@@ -90,10 +111,23 @@ if __name__ == '__main__':
                         first_in_line_transformer] + [noise_transformer_test]
                     timestep_transforms = [noise_transformer] + [MeanFlat()] + [first_in_line_transformer]
                     # Create instances of the Fashion MNIST dataset
-                    train_sets.append(NoisyTemporalDataset('train', dataset=dataset, transform=transform,
+                    train_sets.append(NoisyTemporalDataset('train', dataset=dataset,
+                                                           transform=transform,
                                                            img_to_timesteps_transforms=timestep_transforms))
-                    test_sets.append(NoisyTemporalDataset('test', dataset=dataset, transform=transform,
-                                                          img_to_timesteps_transforms=timestep_transforms))
+
+                    # for the val set to power evals, we need to explicitly add contrast information to every sample
+                    cs = [0.2, 0.4, 0.6, 0.8, 1.0] if contrast == 'random' else [contrast]
+                    for c in cs:
+                        noise_transformer = RandomRepeatedNoise(contrast=c,
+                                                                repeat_noise_at_test=repeat_noise_at_test)
+                        noise_transformer_test = partial(noise_transformer, stage='test')
+                        first_in_line_transformer = partial(noise_transformer, stage='test', first_in_line=True)
+                        timestep_transforms = [noise_transformer] + [MeanFlat()] + [first_in_line_transformer]
+                        test_sets.append(EvalDataWrapper(NoisyTemporalDataset('test', dataset=dataset,
+                                                                              transform=transform,
+                                                                              img_to_timesteps_transforms=timestep_transforms),
+                                                         contrast=c, rep_noise=repeat_noise_at_test)
+                                         )
                 train_dataset = torch.utils.data.ConcatDataset(train_sets)
                 test_dataset = torch.utils.data.ConcatDataset(test_sets)
             else:
@@ -131,9 +165,9 @@ if __name__ == '__main__':
                 model = Adaptation(hooked_model, lr=config["lr"], )
 
                 # load checkpoint
-                #checkpoint_path = f"learned_models/pretrained_divnormchannel_DivisiveNormChannel_contrast_0.2_repeat_noise_True_epoch_8.ckpt"
-                #checkpoint = torch.load(checkpoint_path, map_location='cpu')  # Load checkpoint
-                #state_dict = checkpoint['state_dict']  # Extract state dict
+                # checkpoint_path = f"learned_models/pretrained_divnormchannel_DivisiveNormChannel_contrast_0.2_repeat_noise_True_epoch_8.ckpt"
+                # checkpoint = torch.load(checkpoint_path, map_location='cpu')  # Load checkpoint
+                # state_dict = checkpoint['state_dict']  # Extract state dict
 
                 # cause pretrained model was trained with scalar adaptation params
                 # if adaptation_module == DivisiveNormChannel:
@@ -153,17 +187,19 @@ if __name__ == '__main__':
                 #     param.requires_grad = True
 
                 tb_logger = TensorBoardLogger("lightning_logs",
-                                           name=f'{config["adaptation_module"]}_contrast_{contrast}_repeat_noise_{repeat_noise}_epoch_{num_epoch}',
-                                           version=f't=3_02_{config["adaptation_module"]}_contrast_{contrast}_repeat_noise_{repeat_noise}_epoch_{num_epoch}')
+                                              name=f'{config["adaptation_module"]}_contrast_{contrast}_repeat_noise_{repeat_noise}_epoch_{num_epoch}',
+                                              version=f't=3_02_{config["adaptation_module"]}_contrast_{contrast}_repeat_noise_{repeat_noise}_epoch_{num_epoch}')
 
                 # wandb.init(project='ai-thesis', config=config, entity='ai-thesis', name=f'{config["log_name"]}_{config["adaptation_module"]}_c_{contrast}_rep_{repeat_noise}_ep_{num_epoch}')
-                wandb_logger = pl.loggers.WandbLogger(project='ai-thesis', config=config, name=f'{config["adaptation_module"]}_c_{contrast}_rep_{repeat_noise}_ep_{num_epoch}_{config["log_name"]}')
+                wandb_logger = pl.loggers.WandbLogger(project='ai-thesis', config=config,
+                                                      name=f'{config["adaptation_module"]}_c_{contrast}_rep_{repeat_noise}_ep_{num_epoch}_{config["log_name"]}')
 
                 trainer = pl.Trainer(max_epochs=num_epoch, logger=wandb_logger)
                 hooked_model.cuda()
                 # test_results = trainer.test(model, dataloaders=test_loader)
                 wandb_logger.watch(hooked_model, log='all', log_freq=1000)
 
+                trainer.test(model, test_loader)
                 trainer.fit(model, train_loader, test_loader, )
 
                 # test
