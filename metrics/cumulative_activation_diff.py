@@ -37,8 +37,8 @@ class CumulativeActivationDiff(Metric):
                     cumsum_state += adapt_actvs
                     total_state += n_units
 
-                    setattr(self, f'correct_{c}_{noise}', cumsum_state)
-                    setattr(self, f'total_{c}_{noise}', total_state)
+                    setattr(self, f'cumsum_{c}_{noise}_{layer}', cumsum_state)
+                    setattr(self, f'total_{c}_{noise}_{layer}', total_state)
 
     def compute(self):
         results = {}

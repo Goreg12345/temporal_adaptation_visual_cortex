@@ -1,13 +1,13 @@
 {
-  "num_epochs": [2],
+  "num_epochs": [15],
   "dataset": "fashion_mnist",
   "log_dir": "debug_div_norm",
   "log_name": "temp_div_norm_channel",
-  "contrasts": ["random", 0.2, 0.4, 0.6, 0.8, 1.0],
-  "repeat_noises": ["both", true, false],
+  "contrasts": ["random"],
+  "repeat_noises": ["both"],
   "lr": 0.001,
 
-  "adaptation_module": "DivisiveNorm",
+  "adaptation_module": "ExponentialDecay",
   "layer_kwargs_fmnist": [
     {"in_channels":  1, "out_channels": 32, "kernel_size": 5},
     {"in_channels":  32, "out_channels": 32, "kernel_size": 5},
@@ -22,8 +22,8 @@
   ],
   "adaptation_kwargs_additive": [
     {"alpha_init":  0.9, "train_alpha": true, "beta_init": 2.8, "train_beta": true},
-    {"alpha_init":  0.0, "train_alpha": false, "beta_init": 1, "train_beta": false},
-    {"alpha_init":  0.0, "train_alpha": false, "beta_init": 1, "train_beta": false},
+    {"alpha_init":  1.0, "train_alpha": false, "beta_init": 1, "train_beta": false},
+    {"alpha_init":  1.0, "train_alpha": false, "beta_init": 1, "train_beta": false},
     {"alpha_init":  0.9, "train_alpha": true, "beta_init": 1, "train_beta": true}
   ],
   "adaptation_kwargs_div_norm": [

@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 import torch.nn.functional as F
+from torch import Tensor
 
 
 class DivisiveNorm(nn.Module):
@@ -25,6 +26,21 @@ class DivisiveNorm(nn.Module):
             'K': self.K,
             'alpha': self.sigmoid_scaled_shifted(self.alpha),
             'sigma': self.sigma,
+        }
+
+    def adaptation_graph(self, inputs: Tensor) -> Dict[str, Tensor]:
+        """ given the current adaptation params and a list of inputs, calculate adaptation output and state given the current adaptation params"""
+        outputs = []
+        gs = []
+        inputs = inputs.to(self.alpha.device)
+        g = self.get_init_actvs(inputs[0], 0)
+        for x in inputs:
+            x, g = self.forward(x, g)
+            outputs.append(x)
+            gs.append(g)
+        return {
+            'response': torch.stack(outputs),
+            'G': torch.stack(gs)
         }
 
     def sigmoid_scaled_shifted(self, x, max_val=None):

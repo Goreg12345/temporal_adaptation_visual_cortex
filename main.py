@@ -10,7 +10,7 @@ import wandb
 if len(sys.argv) > 1:
     os.environ["CUDA_VISIBLE_DEVICES"] = sys.argv[1]
 else:
-    os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 from torch.utils.data import DataLoader, Dataset
 import torchvision.transforms as transforms
@@ -109,7 +109,7 @@ if __name__ == '__main__':
 
                     timestep_transforms = [MeanFlat()] + [noise_transformer] * 6 + [MeanFlat()] + [
                         first_in_line_transformer] + [noise_transformer_test]
-                    timestep_transforms = [noise_transformer] + [MeanFlat()] + [first_in_line_transformer]
+                    timestep_transforms = [noise_transformer] * 5 + [MeanFlat()] + [first_in_line_transformer]
                     # Create instances of the Fashion MNIST dataset
                     train_sets.append(NoisyTemporalDataset('train', dataset=dataset,
                                                            transform=transform,
@@ -122,7 +122,7 @@ if __name__ == '__main__':
                                                                 repeat_noise_at_test=repeat_noise_at_test)
                         noise_transformer_test = partial(noise_transformer, stage='test')
                         first_in_line_transformer = partial(noise_transformer, stage='test', first_in_line=True)
-                        timestep_transforms = [noise_transformer] + [MeanFlat()] + [first_in_line_transformer]
+                        timestep_transforms = [noise_transformer] * 5 + [MeanFlat()] + [first_in_line_transformer]
                         test_sets.append(EvalDataWrapper(NoisyTemporalDataset('test', dataset=dataset,
                                                                               transform=transform,
                                                                               img_to_timesteps_transforms=timestep_transforms),
@@ -145,8 +145,8 @@ if __name__ == '__main__':
                                                     img_to_timesteps_transforms=timestep_transforms)
 
             # Create the DataLoaders for the Fashion MNIST dataset
-            train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=3)
-            test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=3)
+            train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=3)
+            test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False, num_workers=3)
 
             # Print the length of the DataLoader
             print(f'Train DataLoader: {len(train_loader)} batches')
@@ -188,11 +188,11 @@ if __name__ == '__main__':
 
                 tb_logger = TensorBoardLogger("lightning_logs",
                                               name=f'{config["adaptation_module"]}_contrast_{contrast}_repeat_noise_{repeat_noise}_epoch_{num_epoch}',
-                                              version=f't=3_02_{config["adaptation_module"]}_contrast_{contrast}_repeat_noise_{repeat_noise}_epoch_{num_epoch}')
+                                              version=f't=7_02_{config["adaptation_module"]}_contrast_{contrast}_repeat_noise_{repeat_noise}_epoch_{num_epoch}')
 
                 # wandb.init(project='ai-thesis', config=config, entity='ai-thesis', name=f'{config["log_name"]}_{config["adaptation_module"]}_c_{contrast}_rep_{repeat_noise}_ep_{num_epoch}')
                 wandb_logger = pl.loggers.WandbLogger(project='ai-thesis', config=config,
-                                                      name=f'{config["adaptation_module"]}_c_{contrast}_rep_{repeat_noise}_ep_{num_epoch}_{config["log_name"]}')
+                                                      name=f't=7_{config["adaptation_module"]}_c_{contrast}_rep_{repeat_noise}_ep_{num_epoch}_{config["log_name"]}')
 
                 trainer = pl.Trainer(max_epochs=num_epoch, logger=wandb_logger)
                 hooked_model.cuda()
@@ -209,6 +209,6 @@ if __name__ == '__main__':
                                     'test_acc': test_results[0]["test_acc"]})
                 logger.save()
                 trainer.save_checkpoint(
-                    f'learned_models/t=3_{config["adaptation_module"]}_contrast_{contrast}_repeat_noise_{repeat_noise}_epoch_{num_epoch}.ckpt')
+                    f'learned_models/t=7_{config["adaptation_module"]}_contrast_{contrast}_repeat_noise_{repeat_noise}_epoch_{num_epoch}.ckpt')
 
                 print('stop')
