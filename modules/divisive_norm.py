@@ -33,7 +33,7 @@ class DivisiveNorm(nn.Module):
         outputs = []
         gs = []
         inputs = inputs.to(self.alpha.device)
-        g = self.get_init_actvs(inputs[0], 0)
+        g = self.get_init_actvs(inputs[0], 0)[0]
         for x in inputs:
             x, g = self.forward(x, g)
             outputs.append(x)

@@ -5,7 +5,7 @@ from transformer_lens.hook_points import HookedRootModule, HookPoint
 
 
 class HookedRecursiveCNN(HookedRootModule):
-    def __init__(self, t_steps, layer_kwargs, adaptation_module, adaptation_kwargs, *args):
+    def __init__(self, t_steps, layer_kwargs, adaptation_module, adaptation_kwargs, d_fc=1024, *args):
         # training variables
         super().__init__(*args)
         self.hks = {}
@@ -33,7 +33,7 @@ class HookedRecursiveCNN(HookedRootModule):
 
         # decoder
         # self.decoder = nn.Linear(in_features=1024*self.t_steps, out_features=10)
-        self.decoder = nn.Linear(in_features=1024,
+        self.decoder = nn.Linear(in_features=d_fc,
                                  out_features=10)  # only saves the output from the last timestep to train
 
         self.setup()

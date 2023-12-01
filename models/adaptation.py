@@ -152,7 +152,7 @@ class Adaptation(pl.LightningModule):
 
     def log_adaptation_graphs(self):
         # plot graph on toy data to visualize how adaptation behaves given current params
-        inputs = torch.tensor([1., 1., 1., 1., 1., 0., 1.])
+        inputs = torch.tensor([1., 1., 1., 1., 1., 0., 1., 1., 1.])
         for adapt_layer in self.model.adapt_layers:
             adaptation_graphs = adapt_layer.adaptation_graph(inputs)
             for name, graph in adaptation_graphs.items():

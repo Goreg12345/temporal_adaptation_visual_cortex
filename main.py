@@ -10,7 +10,7 @@ import wandb
 if len(sys.argv) > 1:
     os.environ["CUDA_VISIBLE_DEVICES"] = sys.argv[1]
 else:
-    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
 from torch.utils.data import DataLoader, Dataset
 import torchvision.transforms as transforms
@@ -109,7 +109,7 @@ if __name__ == '__main__':
 
                     timestep_transforms = [MeanFlat()] + [noise_transformer] * 6 + [MeanFlat()] + [
                         first_in_line_transformer] + [noise_transformer_test]
-                    timestep_transforms = [noise_transformer] * 5 + [MeanFlat()] + [first_in_line_transformer]
+                    timestep_transforms = [noise_transformer] * 5 + [MeanFlat()] + [first_in_line_transformer] + 2 * [noise_transformer_test]
                     # Create instances of the Fashion MNIST dataset
                     train_sets.append(NoisyTemporalDataset('train', dataset=dataset,
                                                            transform=transform,
@@ -122,7 +122,7 @@ if __name__ == '__main__':
                                                                 repeat_noise_at_test=repeat_noise_at_test)
                         noise_transformer_test = partial(noise_transformer, stage='test')
                         first_in_line_transformer = partial(noise_transformer, stage='test', first_in_line=True)
-                        timestep_transforms = [noise_transformer] * 5 + [MeanFlat()] + [first_in_line_transformer]
+                        timestep_transforms = [noise_transformer] * 5 + [MeanFlat()] + [first_in_line_transformer] + 2 * [noise_transformer_test]
                         test_sets.append(EvalDataWrapper(NoisyTemporalDataset('test', dataset=dataset,
                                                                               transform=transform,
                                                                               img_to_timesteps_transforms=timestep_transforms),
@@ -131,22 +131,40 @@ if __name__ == '__main__':
                 train_dataset = torch.utils.data.ConcatDataset(train_sets)
                 test_dataset = torch.utils.data.ConcatDataset(test_sets)
             else:
-                noise_transformer = RandomRepeatedNoise(contrast=contrast, repeat_noise_at_test=repeat_noise)
-                noise_transformer_test = partial(noise_transformer, stage='test')
-                first_in_line_transformer = partial(noise_transformer, stage='test', first_in_line=True)
+                train_sets = []
+                test_sets = []
+                for contrast in [1.0]:
+                    noise_transformer = RandomRepeatedNoise(contrast=contrast, repeat_noise_at_test=repeat_noise)
+                    noise_transformer_test = partial(noise_transformer, stage='test')
+                    first_in_line_transformer = partial(noise_transformer, stage='test', first_in_line=True)
 
-                timestep_transforms = [MeanFlat()] + [noise_transformer] * 6 + [MeanFlat()] + [
-                    first_in_line_transformer] + [noise_transformer_test]
-                # timestep_transforms = [first_in_line_transformer]
-                # Create instances of the Fashion MNIST dataset
-                train_dataset = NoisyTemporalDataset('train', dataset=dataset, transform=transform,
-                                                     img_to_timesteps_transforms=timestep_transforms)
-                test_dataset = NoisyTemporalDataset('test', dataset=dataset, transform=transform,
-                                                    img_to_timesteps_transforms=timestep_transforms)
+                    timestep_transforms = [MeanFlat()] + [noise_transformer] * 6 + [MeanFlat()] + [
+                        first_in_line_transformer] + [noise_transformer_test]
+                    timestep_transforms = [noise_transformer] + [MeanFlat()] + [first_in_line_transformer]
+                    # Create instances of the Fashion MNIST dataset
+                    train_dataset = NoisyTemporalDataset('train', dataset=dataset, transform=transform,
+                                                         img_to_timesteps_transforms=timestep_transforms)
+                    train_sets.append(train_dataset)
+
+                for noise in [True, False]:
+                    # for the val set to power evals, we need to explicitly add contrast information to every sample
+                    cs = [0.2, 0.4, 0.6, 0.8, 1.0]
+                    for c in cs:
+                        noise_transformer = RandomRepeatedNoise(contrast=c,
+                                                                repeat_noise_at_test=noise)
+                        noise_transformer_test = partial(noise_transformer, stage='test')
+                        first_in_line_transformer = partial(noise_transformer, stage='test', first_in_line=True)
+                        timestep_transforms = [noise_transformer] + [MeanFlat()] + [first_in_line_transformer]
+                        test_sets.append(EvalDataWrapper(NoisyTemporalDataset('test', dataset=dataset,
+                                                                              transform=transform,
+                                                                              img_to_timesteps_transforms=timestep_transforms),
+                                                         contrast=c, rep_noise=noise))
+                test_dataset = torch.utils.data.ConcatDataset(test_sets)
+                train_dataset = torch.utils.data.ConcatDataset(train_sets)
 
             # Create the DataLoaders for the Fashion MNIST dataset
-            train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=3)
-            test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False, num_workers=3)
+            train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=8)
+            test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False, num_workers=8)
 
             # Print the length of the DataLoader
             print(f'Train DataLoader: {len(train_loader)} batches')
@@ -185,14 +203,14 @@ if __name__ == '__main__':
                 #     param.requires_grad = False
                 # for param in model.model.adapt_layers.parameters():
                 #     param.requires_grad = True
-
+                contrast = '1.0'
                 tb_logger = TensorBoardLogger("lightning_logs",
                                               name=f'{config["adaptation_module"]}_contrast_{contrast}_repeat_noise_{repeat_noise}_epoch_{num_epoch}',
-                                              version=f't=7_02_{config["adaptation_module"]}_contrast_{contrast}_repeat_noise_{repeat_noise}_epoch_{num_epoch}')
+                                              version=f'generalization_{config["adaptation_module"]}_contrast_{contrast}_repeat_noise_{repeat_noise}_epoch_{num_epoch}')
 
                 # wandb.init(project='ai-thesis', config=config, entity='ai-thesis', name=f'{config["log_name"]}_{config["adaptation_module"]}_c_{contrast}_rep_{repeat_noise}_ep_{num_epoch}')
                 wandb_logger = pl.loggers.WandbLogger(project='ai-thesis', config=config,
-                                                      name=f't=7_{config["adaptation_module"]}_c_{contrast}_rep_{repeat_noise}_ep_{num_epoch}_{config["log_name"]}')
+                                                      name=f'generalization_cifar_{config["adaptation_module"]}_c_{contrast}_rep_{repeat_noise}_ep_{num_epoch}_{config["log_name"]}')
 
                 trainer = pl.Trainer(max_epochs=num_epoch, logger=wandb_logger)
                 hooked_model.cuda()
@@ -208,7 +226,9 @@ if __name__ == '__main__':
                 logger.log_metrics({'contrast': contrast, 'epoch': num_epoch, 'repeat_noise': repeat_noise,
                                     'test_acc': test_results[0]["test_acc"]})
                 logger.save()
+
                 trainer.save_checkpoint(
-                    f'learned_models/t=7_{config["adaptation_module"]}_contrast_{contrast}_repeat_noise_{repeat_noise}_epoch_{num_epoch}.ckpt')
+                    f'learned_models/generalization_cifar_{config["adaptation_module"]}_contrast_{contrast}_repeat_noise_{repeat_noise}_epoch_{num_epoch}.ckpt')
 
                 print('stop')
+                break
