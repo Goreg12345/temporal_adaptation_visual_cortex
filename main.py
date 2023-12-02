@@ -133,8 +133,8 @@ if __name__ == '__main__':
             else:
                 train_sets = []
                 test_sets = []
-                for contrast in [1.0]:
-                    noise_transformer = RandomRepeatedNoise(contrast=contrast, repeat_noise_at_test=repeat_noise)
+                for contrast in [0.2, 1.0]:
+                    noise_transformer = RandomRepeatedNoise(contrast=contrast, repeat_noise_at_test=repeat_noise, noise_component='both')
                     noise_transformer_test = partial(noise_transformer, stage='test')
                     first_in_line_transformer = partial(noise_transformer, stage='test', first_in_line=True)
 
@@ -151,7 +151,8 @@ if __name__ == '__main__':
                     cs = [0.2, 0.4, 0.6, 0.8, 1.0]
                     for c in cs:
                         noise_transformer = RandomRepeatedNoise(contrast=c,
-                                                                repeat_noise_at_test=noise)
+                                                                repeat_noise_at_test=noise,
+                                                                noise_component='both')
                         noise_transformer_test = partial(noise_transformer, stage='test')
                         first_in_line_transformer = partial(noise_transformer, stage='test', first_in_line=True)
                         timestep_transforms = [noise_transformer] + [MeanFlat()] + [first_in_line_transformer]
@@ -163,8 +164,8 @@ if __name__ == '__main__':
                 train_dataset = torch.utils.data.ConcatDataset(train_sets)
 
             # Create the DataLoaders for the Fashion MNIST dataset
-            train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=8)
-            test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False, num_workers=8)
+            train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=3)
+            test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False, num_workers=3)
 
             # Print the length of the DataLoader
             print(f'Train DataLoader: {len(train_loader)} batches')
@@ -210,7 +211,7 @@ if __name__ == '__main__':
 
                 # wandb.init(project='ai-thesis', config=config, entity='ai-thesis', name=f'{config["log_name"]}_{config["adaptation_module"]}_c_{contrast}_rep_{repeat_noise}_ep_{num_epoch}')
                 wandb_logger = pl.loggers.WandbLogger(project='ai-thesis', config=config,
-                                                      name=f'generalization_cifar_{config["adaptation_module"]}_c_{contrast}_rep_{repeat_noise}_ep_{num_epoch}_{config["log_name"]}')
+                                                      name=f'adapter_contrast_cifar_{config["adaptation_module"]}_c_{contrast}_rep_{repeat_noise}_ep_{num_epoch}_{config["log_name"]}')
 
                 trainer = pl.Trainer(max_epochs=num_epoch, logger=wandb_logger)
                 hooked_model.cuda()
@@ -228,7 +229,7 @@ if __name__ == '__main__':
                 logger.save()
 
                 trainer.save_checkpoint(
-                    f'learned_models/generalization_cifar_{config["adaptation_module"]}_contrast_{contrast}_repeat_noise_{repeat_noise}_epoch_{num_epoch}.ckpt')
+                    f'learned_models/adapter_contrast_cifar_{config["adaptation_module"]}_contrast_{contrast}_repeat_noise_{repeat_noise}_epoch_{num_epoch}.ckpt')
 
                 print('stop')
                 break

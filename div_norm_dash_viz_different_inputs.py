@@ -16,7 +16,9 @@ def compute_response(L_t, K, sigma, alpha, G_prev):
 
 
 # Original input data
-L_t_series = np.array([1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1])
+L_t_series = np.array([1, 1, 1, 1, 1, 1, .4, .4, .4, .4, .4, .4, .4, .4, 0, 1, 1, 1, 1, 1])
+L_t_series_2 = np.array([1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1]) * 0
+L_t_series_3 = np.array([1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1]) * 0
 colors = ['blue', 'green', 'red']
 
 # Initialize the app and use a bootstrap style
@@ -40,24 +42,6 @@ app.layout = dbc.Container([
             dcc.Slider(id='alpha1-slider', min=-1, max=4, step=0.1, value=0.1),
             html.Label("sigma:"),
             dcc.Slider(id='sigma1-slider', min=-1, max=4, step=0.1, value=1.),
-        ], width=4),
-        dbc.Col([
-            html.H6("Layer 2 Parameters:"),
-            html.Label("K:"),
-            dcc.Slider(id='K2-slider', min=-1, max=4, step=0.1, value=2.),
-            html.Label("alpha:"),
-            dcc.Slider(id='alpha2-slider', min=-1, max=4, step=0.1, value=.1),
-            html.Label("sigma:"),
-            dcc.Slider(id='sigma2-slider', min=-1, max=4, step=0.1, value=1),
-        ], width=4),
-        dbc.Col([
-            html.H6("Layer 3 Parameters:"),
-            html.Label("K:"),
-            dcc.Slider(id='K3-slider', min=-1, max=4, step=0.1, value=2.),
-            html.Label("alpha:"),
-            dcc.Slider(id='alpha3-slider', min=-1, max=4, step=0.1, value=.1),
-            html.Label("sigma:"),
-            dcc.Slider(id='sigma3-slider', min=-1, max=4, step=0.1, value=1.),
         ], width=4)
     ]),
 ], fluid=True)
@@ -68,21 +52,14 @@ app.layout = dbc.Container([
     Output('graph', 'figure'),
     [
         Input('K1-slider', 'value'), Input('alpha1-slider', 'value'), Input('sigma1-slider', 'value'),
-        Input('K2-slider', 'value'), Input('alpha2-slider', 'value'), Input('sigma2-slider', 'value'),
-        Input('K3-slider', 'value'), Input('alpha3-slider', 'value'), Input('sigma3-slider', 'value'),
     ]
 )
-def update_figure(K1, alpha1, sigma1, K2, alpha2, sigma2, K3, alpha3, sigma3):
-    params = [
-        {"K": K1, "alpha": alpha1, "sigma": sigma1},
-        {"K": K2, "alpha": alpha2, "sigma": sigma2},
-        {"K": K3, "alpha": alpha3, "sigma": sigma3}
-    ]
+def update_figure(K1, alpha1, sigma1):
+    param = {"K": K1, "alpha": alpha1, "sigma": sigma1}
 
     fig = go.Figure()
-    input_series = L_t_series
 
-    for i, param in enumerate(params):
+    for i, input_series in enumerate([L_t_series, L_t_series_2, L_t_series_3]):
         r_t_series, G_t_series = [], []
         G_prev = 0.0
 
