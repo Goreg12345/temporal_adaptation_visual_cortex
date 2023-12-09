@@ -24,7 +24,7 @@ from metrics.dead_neurons_counter import DeadNeuronMetric
 
 class Adaptation(pl.LightningModule):
 
-    def __init__(self, model: HookedRecursiveCNN, lr: float = 1e-3):
+    def __init__(self, model: HookedRecursiveCNN, lr: float = 1e-3, contrast_metrics=True):
         super(Adaptation, self).__init__()
 
         self.model = model
@@ -33,13 +33,15 @@ class Adaptation(pl.LightningModule):
         self.loss = nn.CrossEntropyLoss()
 
         # METRICS
+        self.contrast_metrics = contrast_metrics
         self.update_to_weight_metric = RelativeGradientUpdateNorm(self.model.named_parameters())
         self.dead_neurons_counter = DeadNeuronMetric(n_adapt_layers=len(model.adapt_layers), n_timesteps=model.t_steps)
         self.dead_feature_maps_counter = DeadNeuronMetric(n_adapt_layers=len(model.adapt_layers), n_timesteps=model.t_steps, per='map')
         self.sparsity = Sparsity(n_adapt_layers=len(model.adapt_layers), timestep=-1)
-        self.acc_per_setting = AccuracyPerSetting(contrasts=[0.2, 0.4, 0.6, 0.8, 1.0], repeated_noise=[True, False])
-        self.acc_diff = AccuracyDifference(contrasts=[0.2, 0.4, 0.6, 0.8, 1.0], repeated_noise=[True, False])
-        self.cum_actv_diff = CumulativeActivationDiff(contrasts=[0.2, 0.4, 0.6, 0.8, 1.0], repeated_noise=[True, False], n_layers=len(model.adapt_layers))
+        if self.contrast_metrics:
+            self.acc_per_setting = AccuracyPerSetting(contrasts=[0.2, 0.4, 0.6, 0.8, 1.0], repeated_noise=[True, False])
+            self.acc_diff = AccuracyDifference(contrasts=[0.2, 0.4, 0.6, 0.8, 1.0], repeated_noise=[True, False])
+            self.cum_actv_diff = CumulativeActivationDiff(contrasts=[0.2, 0.4, 0.6, 0.8, 1.0], repeated_noise=[True, False], n_layers=len(model.adapt_layers))
         self.actv_scale_per_timestep_plot = ActvScalePerTimestepPlot(repeated_noise=[True, False], n_layers=len(model.adapt_layers), n_timesteps=model.t_steps)
 
     def forward(self, X):
@@ -53,6 +55,10 @@ class Adaptation(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y = batch
         y_hat, cache = self.model.run_with_cache(x)
+
+        y = y.view(-1)
+        if y_hat.dim() > 2:
+            y_hat = y_hat.view(y_hat.shape[0] * y_hat.shape[1], -1)
         loss = self.loss(y_hat, y)
 
         # METRICS
@@ -104,6 +110,10 @@ class Adaptation(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x, y, contrast, rep_noise = batch
         y_hat, cache = self.model.run_with_cache(x)
+
+        y = y.view(-1)
+        if y_hat.dim() > 2:
+            y_hat = y_hat.view(y_hat.shape[0] * y_hat.shape[1], -1)
         loss = self.loss(y_hat, y)
         self.log('val_loss', loss)
         # accuracy
@@ -111,9 +121,10 @@ class Adaptation(pl.LightningModule):
         acc = accuracy(preds, y, task='multiclass', num_classes=10)
         self.log('val_acc', acc)
 
-        self.acc_per_setting.update(y_hat, y, contrast, rep_noise)
-        self.acc_diff.update(y_hat, y, contrast, rep_noise)
-        self.cum_actv_diff.update(cache, contrast, rep_noise)
+        if self.contrast_metrics:
+            self.acc_per_setting.update(y_hat, y, contrast, rep_noise)
+            self.acc_diff.update(y_hat, y, contrast, rep_noise)
+            self.cum_actv_diff.update(cache, contrast, rep_noise)
         self.actv_scale_per_timestep_plot.update(cache, rep_noise)
 
         if batch_idx == 0:
@@ -121,9 +132,10 @@ class Adaptation(pl.LightningModule):
         return loss
 
     def on_validation_epoch_end(self) -> None:
-        self.log_dict(self.acc_per_setting.compute())
-        self.log_dict(self.acc_diff.compute())
-        self.log_dict(self.cum_actv_diff.compute())
+        if self.contrast_metrics:
+            self.log_dict(self.acc_per_setting.compute())
+            self.log_dict(self.acc_diff.compute())
+            self.log_dict(self.cum_actv_diff.compute())
 
         plt.show()
         self.logger.experiment.log({
@@ -134,6 +146,10 @@ class Adaptation(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         x, y, contrast, rep_noise = batch
         y_hat, cache = self.model.run_with_cache(x)
+
+        y = y.view(-1)
+        if y_hat.dim() > 2:
+            y_hat = y_hat.view(y_hat.shape[0] * y_hat.shape[1], -1)
         loss = self.loss(y_hat, y)
         self.log('test_loss', loss)
         # accuracy
@@ -141,9 +157,10 @@ class Adaptation(pl.LightningModule):
         acc = accuracy(preds, y, task='multiclass', num_classes=10)
         self.log('test_acc', acc)
 
-        self.acc_per_setting.update(y_hat, y, contrast, rep_noise)
-        self.acc_diff.update(y_hat, y, contrast, rep_noise)
-        self.cum_actv_diff.update(cache, contrast, rep_noise)
+        if self.contrast_metrics:
+            self.acc_per_setting.update(y_hat, y, contrast, rep_noise)
+            self.acc_diff.update(y_hat, y, contrast, rep_noise)
+            self.cum_actv_diff.update(cache, contrast, rep_noise)
         self.actv_scale_per_timestep_plot.update(cache, rep_noise)
 
         if batch_idx == 0:
@@ -211,9 +228,10 @@ class Adaptation(pl.LightningModule):
         self.log_adaptation_graphs()
 
     def on_test_epoch_end(self) -> None:
-        self.log_dict(self.acc_per_setting.compute())
-        self.log_dict(self.acc_diff.compute())
-        self.log_dict(self.cum_actv_diff.compute())
+        if self.contrast_metrics:
+            self.log_dict(self.acc_per_setting.compute())
+            self.log_dict(self.acc_diff.compute())
+            self.log_dict(self.cum_actv_diff.compute())
 
         plt.show()
         self.logger.experiment.log({

@@ -8,7 +8,7 @@ from torch import Tensor
 
 
 class DivisiveNorm(nn.Module):
-    def __init__(self, epsilon, K_init, train_K, alpha_init, train_alpha, sigma_init, train_sigma):
+    def __init__(self, epsilon, K_init, train_K, alpha_init, train_alpha, sigma_init, train_sigma, sqrt=False):
         super().__init__()
 
         self.epsilon = epsilon
@@ -16,6 +16,8 @@ class DivisiveNorm(nn.Module):
         self.K = nn.Parameter(torch.tensor(K_init, dtype=torch.float32), requires_grad=train_K)
         self.alpha = nn.Parameter(torch.tensor(alpha_init, dtype=torch.float32), requires_grad=train_alpha)
         self.sigma = nn.Parameter(torch.tensor(sigma_init, dtype=torch.float32), requires_grad=train_sigma)
+
+        self.sqrt=sqrt
 
         # clamp alpha between 0 and 1?
     def get_init_actvs(self, x, num_layer):
@@ -61,7 +63,10 @@ class DivisiveNorm(nn.Module):
 
 
         # F = torch.sqrt(self.K - G_prev + self.epsilon) / self.
-        F = (self.K - G_prev + self.epsilon) / (self.sigma + self.epsilon)
+        if self.sqrt:
+            F = torch.sqrt(self.K - G_prev + self.epsilon) / (self.sigma + self.epsilon)
+        else:
+            F = (self.K - G_prev + self.epsilon) / (self.sigma + self.epsilon)
         response = torch.relu(L * F)
 
         G = ((1 - self.sigmoid_scaled_shifted(self.alpha)) * G_prev) + self.sigmoid_scaled_shifted(self.alpha) * response
