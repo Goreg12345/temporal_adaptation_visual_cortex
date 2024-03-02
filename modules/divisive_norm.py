@@ -71,3 +71,6 @@ class DivisiveNorm(nn.Module):
 
         G = ((1 - self.sigmoid_scaled_shifted(self.alpha)) * G_prev) + self.sigmoid_scaled_shifted(self.alpha) * response
         return response, G
+
+    def __str__(self):
+        return 'DivisiveNorm'

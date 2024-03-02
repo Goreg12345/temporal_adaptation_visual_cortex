@@ -1,10 +1,8 @@
-from typing import Union, Literal
+from typing import Literal
 
 import torch
 from torchmetrics import Metric
 from transformer_lens import ActivationCache
-
-from HookedRecursiveCNN import HookedRecursiveCNN
 
 
 class DeadNeuronMetric(Metric):

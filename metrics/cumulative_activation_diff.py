@@ -1,10 +1,8 @@
-from typing import Tuple, List
+from typing import List
 
 import torch
 from torchmetrics import Metric
 from transformer_lens import ActivationCache
-
-from HookedRecursiveCNN import HookedRecursiveCNN
 
 
 class CumulativeActivationDiff(Metric):

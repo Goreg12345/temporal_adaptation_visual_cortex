@@ -1,7 +1,5 @@
 from typing import Any
 
-import pandas as pd
-import seaborn as sns
 import torch
 import torch.nn as nn
 import wandb
@@ -12,7 +10,7 @@ from torchmetrics.functional import accuracy
 
 import pytorch_lightning as pl
 
-from HookedRecursiveCNN import HookedRecursiveCNN
+from models.HookedRecursiveCNN import HookedRecursiveCNN
 from metrics.accuracy_per_setting import AccuracyPerSetting
 from metrics.accuracy_difference import AccuracyDifference
 from metrics.actv_scale_per_timestep_plot import ActvScalePerTimestepPlot

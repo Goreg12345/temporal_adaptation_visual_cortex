@@ -68,3 +68,6 @@ class ExponentialDecay(nn.Module):
         x = new_actv.clone()
 
         return x, new_actv, updated_state
+
+    def __str__(self):
+        return 'ExponentialDecay'
